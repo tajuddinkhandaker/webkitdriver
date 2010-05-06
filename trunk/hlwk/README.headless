@@ -1,0 +1,18 @@
+This is a source tree of original WebDriver svn snapshot with headless port added.
+
+WX port was used as a base for cloning of headless port. All headless-specific files
+can be found in WebCore/platform/hl WebCore/platform/graphics/hl WebCore/platform/text/hl,
+WebCore/platform/image-decoders/hl, WebCore/page/hl and JavaScriptCore/wtf/hl. They use
+same file and class naming schema as original wx port, with suffixes changed from Wx to Hl.
+
+All image and font renderning code was removed from the headless port and replaces with 
+stubs. Own implementation of shared timers and logging selection was added.
+
+High-level bidinging can be found in WebKit/hl. The bindings are in depelopment for now.
+
+Headless port uses same waf build system as WX port for now, the plan is to replace it with
+rake.
+
+To build the headless port, just invoke ./WebKitTools/Scripts/build-webkit --hl
+
+

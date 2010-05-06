@@ -1,0 +1,8 @@
+JSSVGPolylineElement.h : SVGTests.idl SVGLangSpace.idl SVGExternalResourcesRequired.idl SVGStylable.idl SVGTransformable.idl SVGLocatable.idl SVGAnimatedPoints.idl
+SVGTests.idl :
+SVGLangSpace.idl :
+SVGExternalResourcesRequired.idl :
+SVGStylable.idl :
+SVGTransformable.idl :
+SVGLocatable.idl :
+SVGAnimatedPoints.idl :

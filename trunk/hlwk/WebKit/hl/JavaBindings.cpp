@@ -1,0 +1,1590 @@
+#include "config.h"
+#include "ApplicationCache.h"
+#include "ApplicationCacheGroup.h"
+#include "ApplicationCacheResource.h"
+#include "ClientRect.h"
+#include "CString.h"
+#include "CSSComputedStyleDeclaration.h"
+#include "CSSParser.h"
+#include "Document.h"
+#include "Editor.h"
+#include "Element.h"
+#include "EventNames.h"
+#include "EventHandler.h"
+#include "ExtraKeyCodes.h"
+#include "FileList.h"
+#include "Frame.h"
+#include "FrameLoader.h"
+#include "FocusController.h"
+#include "DocumentLoader.h"
+#include "FrameView.h"
+#include "HitTestResult.h"
+#include "HTMLFrameOwnerElement.h"
+#include "HTMLElement.h"
+#include "HTMLFormElement.h"
+#include "HTMLInputElement.h"
+#include "HTMLOptionElement.h"
+#include "HTMLSelectElement.h"
+#include "HTMLTextAreaElement.h"
+#include "InputElement.h"
+#include "Logging.h"
+#include "KeyboardEvent.h"
+#include "markup.h"
+#include "MouseEvent.h"
+#include "Node.h"
+#include "NetworkStateNotifier.h"
+#include "NodeList.h"
+#include "OptionElement.h"
+#include "PlatformKeyboardEvent.h"
+#include "StaticNodeList.h"
+#include "TextIterator.h"
+#include "Page.h"
+#include "PageGroup.h"
+#include "PlatformString.h"
+#include "RenderTreeAsText.h"
+#include "RenderObject.h"
+#include "RenderView.h"
+#include "ScriptController.h"
+#include "ScriptObject.h"
+#include "ScriptFunctionCall.h"
+#include "ScriptSourceCode.h"
+#include "ScriptString.h"
+#include "ScriptValue.h"
+#include "SubstituteData.h"
+#include "TextEncoding.h"
+#include "XPathResult.h"
+
+#include "runtime_array.h"
+#include "runtime_object.h"
+#include "runtime/DateInstance.h"
+#include "JSByteArray.h"
+#include "JSDOMBinding.h"
+#include "ExceptionBase.h"
+#include "JSExceptionBase.h"
+#include <runtime/Executable.h>
+#include <runtime/JSFunction.h>
+#include <runtime/FunctionConstructor.h>
+#include "runtime/JSLock.h"
+#include <runtime/JSValue.h>
+#include <runtime/UString.h>
+
+#include "JSNode.h"
+#include "JSNodeList.h"
+
+#include "EditorClientHl.h"
+#include "DragClientHl.h"
+#include "InspectorClientHl.h"
+#include "ContextMenuClientHl.h"
+#include "FrameLoaderClientHl.h"
+#include "Chrome.h"
+#include "ChromeClientHl.h"
+
+#include "GeolocationControllerClientHl.h"
+#include "GeolocationPosition.h"
+#include "GeolocationController.h"
+
+#include "CookieJar.h"
+#include "CookieJarHl.h"
+#include "rendering/RenderObject.h"
+#include "rendering/RenderBoxModelObject.h"
+#include "rendering/RenderInline.h"
+
+#include "WebKitDriver.h"
+
+#include "JavaBindings.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+
+static   jfieldID    g_nativeClass;
+using namespace WebCore;
+
+#define to_string(env, str) (env->GetStringChars(str, NULL))
+#define to_window_handle(drv) (String::number((long)(drv)))
+
+static bool frameIsLoading(Frame *frame)
+{
+    if (frame->loader()->isLoading())
+        return true;
+    FrameLoaderClientHl *client = (FrameLoaderClientHl*)(frame->loader()->client());
+    if (client->inRedirect())
+        return true;
+    int count = frame->tree()->childCount();
+    for (int i=0; i<count; i++) {
+        if ( frameIsLoading(frame->tree()->child(i)))
+            return true;
+    }
+    return false;
+}
+
+static bool waitSingleFrame(Frame *frame) {
+    while (Headless::processTimer() && frameIsLoading(frame)) {
+        WTFLog(&LogLoading, "Wait for loaded frame\n");
+    };
+    // TODO: return frame loading result - true if loaded successfully, false otherwise
+    return true;
+}
+
+static void waitAllFrames(Page *skipPage) {
+    const HashSet<Page*>& pages = PageGroup::pageGroup("headless")->pages();
+    HashSet<Page*>::const_iterator end = pages.end();
+    for (HashSet<Page*>::const_iterator it = pages.begin(); it != end; ++it) {
+        Page* p = *it;
+        if (p != skipPage)
+            waitSingleFrame(p->mainFrame());
+    }
+}
+
+static bool waitFrameLoaded(Frame *frame) {
+    if (!frame)
+        return true;
+    frame = frame->tree()->top();
+    bool res = waitSingleFrame(frame);
+    waitAllFrames(frame->page());
+    return res;
+}
+
+static void mouseEvent(AtomicString& eventType, Element* element, int x = 0, int y = 0)
+{
+    PassRefPtr<AbstractView> view = element->document()->defaultView();
+    PassRefPtr<Element> target(element);
+    PassRefPtr<MouseEvent> evt = MouseEvent::create();
+    evt.get()->initMouseEvent(
+        eventType, true, true,
+        view, 1, 0, 0, x, y,
+        false, false, false, false,
+        0, target);
+    element->dispatchEvent(evt);
+    Headless::processExpiredTimers();
+}
+
+static bool keyEvent(PlatformKeyboardEvent::Type eventType, UChar key, int modifiers, Element* element, bool preventDefault=0)
+{
+    PlatformKeyboardEvent evt(eventType, key, modifiers);
+    RefPtr<KeyboardEvent> keyboardEvent = KeyboardEvent::create(evt, element->document()->defaultView());
+    if (preventDefault)
+        keyboardEvent->preventDefault();
+    return element->dispatchEvent(keyboardEvent);
+}
+
+WebCore::String getProperty(Element* element, WebCore::String name) {
+    if (element == NULL || !element->isStyledElement()) {
+        return String("");
+    }
+    Headless::processExpiredTimers();
+    RefPtr<CSSComputedStyleDeclaration> style = computedStyle(element);
+    String str = "";
+    if (style) str = style->getPropertyValue(cssPropertyID(name));
+    return str;
+}
+
+static IntRect getBoundingBoxSize(Node* node) {
+    if (node->renderer()) {
+#if ENABLE(SVG)
+        if (node->isSVGElement()) {
+            IntRect res = IntRect(node->renderer()->objectBoundingBox());
+            // FIXME there is a missing initialization of some variable in
+            // SVG so during the first call it returns 0. Later it works OK
+            // We can leave it for now since SVG is not crucial.
+            if (!res.width() && !res.height()) {
+                return IntRect(1, 1, 1, 1);
+            }
+            return res;
+        }
+#endif
+        return node->getRect();
+    }
+    return IntRect(0, 0, 0, 0);
+}
+
+static bool isVisible(Node* node, bool zeroSizeInvisible = true, bool start = true, bool childVisibility = false) {
+    if (!node) return childVisibility;
+    bool started = start;
+    bool visible = childVisibility;
+    bool isNone = false;
+
+    Element *element = (Element*)node;
+    // Proabably it's better to use renderer to check visibility, but currently
+    // we have an issue with selectors they does not have renderer
+    if (node->isElementNode()) {
+        started = false;
+        IntRect rect = getBoundingBoxSize(node);
+        // magic Title tag wich is expected to be visible despite display=none
+        if (node->nodeName() == "TITLE") return true;
+        else if (getProperty((Element*)node, String("display")) == "none") {
+            visible =  false;
+            isNone = true;
+        }
+        else if (zeroSizeInvisible && node->renderer() && !(rect.height() && rect.width())) {
+            RenderBoxModelObject* render = (RenderBoxModelObject*)node->renderer();
+            visible = false;
+        }
+        else if (getProperty((Element*)node, String("visibility")) == "visible") visible = true;
+        else if (getProperty((Element*)node, String("visibility")) == "hidden") visible = false;
+    }
+    if (!start && !isNone) visible = childVisibility;
+    return isVisible(node->parentNode(), zeroSizeInvisible, started, visible);
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_create(JNIEnv *env, jobject obj, jstring userAgent)
+{
+    jlong jresult = 0;
+    String userAgentStr;
+    if (userAgent)
+        userAgentStr = to_string(env, userAgent);
+    WebKitDriver *driver = new WebKitDriver(userAgentStr);
+    *(WebKitDriver **)&jresult = driver;
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_destroy(JNIEnv *env, jobject obj, jlong ref)
+{
+    jlong jresult = 0;
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    if (drv) {
+        delete drv;
+        jresult = 1;
+    }
+    return jresult;
+}
+
+JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setDatabaseEnabled(JNIEnv *env, jobject obj, jlong ref, jboolean enable)
+{
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    return drv->setDatabaseEnabled(enable);
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_get(JNIEnv *env, jobject obj, jlong ref, jstring url)
+{
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    String urlString = to_string(env, url);
+    KURL kurl = KURL(KURL(), urlString, WebCore::UTF8Encoding());
+    // 'Get' logics implies main frame
+    drv->SetFrame(drv->GetMainFrame());
+    drv->GetMainFrame()->loader()->load(kurl, false);
+    return waitFrameLoaded(drv->GetMainFrame());
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getDocument(JNIEnv *env, jobject obj, jlong ref)
+{
+    jlong jresult = 0;
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    *(Element **)&jresult = drv->GetFrame()->document()->documentElement();
+    return jresult;
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getTitle(JNIEnv *env, jobject obj, jlong ref){
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    WebCore::String str = drv->GetFrame()->document()->title();
+    return env->NewString(str.characters(),str.length());
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getPageSource(JNIEnv *env, jobject obj, jlong ref){
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+
+    Element *element = drv->GetFrame()->document()->documentElement();
+    WebCore::String str;
+    if (element && element->isHTMLElement())
+        if (drv->GetFrame()->loader()->responseMIMEType() == "text/plain")
+            str = ((HTMLElement*)element)->outerText();
+        else str = ((HTMLElement*)element)->outerHTML();
+    return env->NewString(str.characters(),str.length());
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getUrl(JNIEnv *env, jobject obj, jlong ref){
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    WebCore::String str;
+    KURL url = drv->GetFrame()->loader()->url();
+    if (!url.isNull())
+        str = url.string();
+    return env->NewString(str.characters(),str.length());
+}
+
+jobject createJStringObject (JNIEnv *env, int len, const jchar* str) {
+    jcharArray charArray;
+    jobject result = NULL;
+    jclass objClass = env->FindClass("java/lang/String");
+    jmethodID cid = env->GetMethodID(objClass, "<init>", "([C)V");
+    charArray = env->NewCharArray(len);
+    env->SetCharArrayRegion(charArray, 0, len, str);
+    result = env->NewObject(objClass, cid, charArray);
+
+    env->DeleteLocalRef(charArray);
+    env->DeleteLocalRef(objClass);
+    return result;
+}
+
+typedef WTF::HashSet<JSC::JSObject*> ObjectSet;
+
+jobject getObjectFromValue (JNIEnv *env, jobject driver, ScriptState *state, JSC::JSValue value, ObjectSet set, JSC::JSObject **cycle)  {
+    jclass objClass;
+    jmethodID cid;
+    jobject result = NULL;
+    using namespace JSC;
+
+    JSLock lock(SilenceAssertionsOnly);
+    if (*cycle) return NULL;
+
+    if (value.isNull()) {
+        objClass = env->FindClass("java/lang/Exception");
+        cid = env->GetMethodID(objClass, "<init>", "()V");
+        result = env->NewObject(objClass, cid);
+    } else if (value.isUndefined()) {
+    } else if (value.isNumber()) {
+        if (!value.isDouble()) {
+            objClass = env->FindClass("java/lang/Long");
+            cid = env->GetMethodID(objClass, "<init>", "(J)V");
+            jlong longResult = value.asInt32();
+            result = env->NewObject(objClass, cid, longResult);
+        } else {
+            objClass = env->FindClass("java/lang/Double");
+            cid = env->GetMethodID(objClass, "<init>", "(D)V");
+            jdouble doubleResult = value.asDouble();
+            result = env->NewObject(objClass, cid, doubleResult);
+        }
+        env->DeleteLocalRef(objClass);
+    } else if (value.isBoolean()) {
+        objClass = env->FindClass("java/lang/Boolean");
+        cid = env->GetMethodID(objClass, "<init>", "(Z)V");
+        result = env->NewObject(objClass, cid, value.isTrue());
+        env->DeleteLocalRef(objClass);
+    } else if (value.isString()) {
+        WebCore::String strResult = value.getString(state);
+        result = createJStringObject(env, strResult.length(), strResult.characters());
+    } else if (isJSByteArray(&state->globalData(), value)) {
+        WTF::ByteArray* arr = asByteArray(value)->storage();
+        jbyteArray byteArray = env->NewByteArray(arr->length());
+        env->SetByteArrayRegion(byteArray, 0, arr->length(), (jbyte*)arr->data());
+        result = (jobject)byteArray;
+    } else if (value.isObject()) {
+        JSObject *object = value.getObject();
+        if (set.contains(object)) {
+            *cycle = object;
+            return NULL;
+        }
+        set.add(object);
+        if (object->inherits(&JSArray::info)) {
+            jobject arrayObj;
+            objClass = env->FindClass("java/util/ArrayList");
+            cid = env->GetMethodID(objClass, "<init>", "()V");
+            result = env->NewObject(objClass, cid);
+            jmethodID adding = env->GetMethodID(objClass, "add", "(Ljava/lang/Object;)Z");
+            JSArray *array = static_cast<JSArray *>(object);
+            for (int i = 0; i < array->length(); i++) {
+                arrayObj = getObjectFromValue(env, driver, state, array->getIndex(i), set, cycle);
+                if (result && adding && arrayObj)
+                env->CallBooleanMethod(result, adding, arrayObj);
+            }
+            env->DeleteLocalRef(objClass);
+        } else if (object->inherits(&JSNodeList::s_info)) {
+            objClass = env->FindClass("org/openqa/selenium/webkit/WebKitWebElement");
+            cid = env->GetStaticMethodID(objClass, "createNodeList", "(Lorg/openqa/selenium/webkit/WebKitDriver;J)Ljava/util/List;");
+            if (!objClass || !cid) return NULL;
+            NodeList* nList = toNodeList(object);
+            nList->ref();
+            result = env->CallStaticObjectMethod(objClass, cid, driver, nList);
+            env->DeleteLocalRef(objClass);
+        } else if (object->inherits(&JSNode::s_info)) {
+            objClass = env->FindClass("org/openqa/selenium/webkit/WebKitWebElement");
+            cid = env->GetMethodID(objClass, "<init>", "(Lorg/openqa/selenium/webkit/WebKitDriver;J)V");
+            result = env->NewObject(objClass, cid, driver, toNode(object));
+            env->DeleteLocalRef(objClass);
+        } else if (object->inherits(&DateInstance::info)) {
+            // TODO Date processing
+        } else {
+            PropertyNameArray properties(state);
+            object->getPropertyNames(state, properties);
+            if (!properties.size()) {
+                return NULL;
+            }
+            objClass = env->FindClass("java/util/HashMap");
+            if (!objClass) {
+                return NULL;
+            }
+            cid = env->GetMethodID(objClass, "<init>", "()V");
+            if (!cid) {
+                return NULL;
+            }
+            result = env->NewObject(objClass, cid);
+            if (!result) {
+                return NULL;
+            }
+            jmethodID adding = env->GetMethodID(objClass, "put",
+                    "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+            if (!adding) {
+                return NULL;
+            }
+            int size = properties.size();
+            for (int i = 0;i < size; i++) {
+                Identifier it = properties[i];
+                if (object->propertyIsEnumerable(state, it)) {
+                    jobject mapObject = getObjectFromValue(env, driver, state, object->get(state, it), set, cycle);
+                    if (*cycle == object) {
+                        *cycle = NULL;
+                    }
+                    if (!mapObject) {
+                        break;
+                    }
+                    jobject key = createJStringObject(env, (it).size(), (it).data());
+                    env->CallObjectMethod(result, adding, key, mapObject);
+                }
+            }
+            env->DeleteLocalRef(objClass);
+        }
+    } else if (value.isGetterSetter()) {
+    } else {
+        printf ("Unknown return type\n");
+    }
+    return result;
+}
+
+jobject processException(JNIEnv* env, JSC::ExecState* exec, JSC::JSValue exception, bool report = false) {
+    if (!exec->hadException()) return NULL;
+
+    JSC::UString errorMessage = exception.toString(exec);
+    exec->clearException();
+    WebCore::ExceptionBase* exceptionBase;
+    if (exceptionBase = WebCore::toExceptionBase(exception))
+        errorMessage = exceptionBase->message() + ":" + exceptionBase->description();
+    if (report)
+        printf ("Error message --%s\n", errorMessage.UTF8String().c_str());
+    jclass objClass = env->FindClass("java/lang/Exception");
+    jmethodID cid = env->GetMethodID(objClass, "<init>", "()V");
+    jobject result = env->NewObject(objClass, cid);
+    env->DeleteLocalRef(objClass);
+    return result;
+}
+
+
+JSC::JSValue parseArgument(JNIEnv* env, WebKitDriver* drv, jobject argument) {
+    using namespace JSC;
+    JSValue result;
+
+    ScriptState *state = drv->GetFrame()->script()->globalObject(mainThreadNormalWorld())->globalExec();
+    jclass jstrClass = env->FindClass("java/lang/String");
+    jclass webElementClass = env->FindClass("org/openqa/selenium/webkit/WebKitWebElement");
+    jclass jboolClass = env->FindClass("java/lang/Boolean");
+    jclass jintClass = env->FindClass("java/lang/Integer");
+    jclass jlongClass = env->FindClass("java/lang/Long");
+    jclass jdoubleClass = env->FindClass("java/lang/Double");
+    if (!jstrClass || !webElementClass || !jboolClass || !jintClass ||
+            !jlongClass || !jdoubleClass) {
+        printf ("Error in JNI Class calls\n");
+        return JSValue();
+    }
+    jmethodID cid = env->GetMethodID(webElementClass, "getReference", "()J");
+    jmethodID iid = env->GetMethodID(jintClass, "longValue", "()J");
+    jmethodID lid = env->GetMethodID(jlongClass, "longValue", "()J");
+    jmethodID did = env->GetMethodID(jdoubleClass, "doubleValue", "()D");
+    jmethodID bid = env->GetMethodID(jboolClass, "booleanValue", "()Z");
+    JSDOMGlobalObject* globalObject = toJSDOMGlobalObject(drv->GetFrame()->document(), mainThreadNormalWorld());
+
+    if (env->IsInstanceOf(argument, jstrClass)) {
+        const char *str = env->GetStringUTFChars(*(jstring*)&argument, NULL);
+        result = jsString(state, WebCore::String(str));
+    } else if (env->IsInstanceOf(argument, webElementClass)) {
+        WebCore::Node* node = (WebCore::Node*)env->CallLongMethod(argument, cid);
+        result = toJS(state, globalObject, node);
+    } else if (env->IsInstanceOf(argument, jlongClass)) {
+        long arg = env->CallLongMethod(argument, lid);
+        result = jsNumber(state, arg);
+    } else if (env->IsInstanceOf(argument, jintClass)) {
+        long arg = env->CallLongMethod(argument, iid);
+        result = jsNumber(state, arg);
+    } else if (env->IsInstanceOf(argument, jboolClass)) {
+        bool arg = env->CallBooleanMethod(argument, bid);
+        result = jsBoolean(arg);
+    } else if (env->IsInstanceOf(argument, jdoubleClass)) {
+        double arg = env->CallDoubleMethod(argument, did);
+        result = jsNumber(state, arg);
+    } else {
+        // TODO we assuming type checking is going through WebDriver so only correct types are present. Probably should move it here.
+        jobjectArray jarrayArg = (jobjectArray)argument;
+        JSArray *resArray=constructEmptyArray(state);
+        for (int i=0; i<env->GetArrayLength(jarrayArg); i++) {
+            JSValue jsArg = parseArgument(env, drv, env->GetObjectArrayElement(jarrayArg, i));
+            resArray->push(state, jsArg);
+        }
+        result = JSValue(resArray);
+    }
+
+    env->DeleteLocalRef(jstrClass);
+    env->DeleteLocalRef(webElementClass);
+    env->DeleteLocalRef(jboolClass);
+    env->DeleteLocalRef(jintClass);
+    env->DeleteLocalRef(jlongClass);
+    env->DeleteLocalRef(jdoubleClass);
+    return result;
+}
+
+JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(JNIEnv *env, jobject obj, jlong ref, jobjectArray argv) {
+    using namespace JSC;
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    ScriptController *proxy;
+    if ((drv != NULL) && (drv->GetFrame() != NULL)) proxy = drv->GetFrame()->script();
+    else return NULL;
+    int lineNumber = 3;
+
+    Headless::processExpiredTimers();
+    ScriptState *state = proxy->globalObject(mainThreadNormalWorld())->globalExec();
+    MarkedArgumentBuffer args;
+    MarkedArgumentBuffer funcArgs;
+    int i;
+    for (i=0; i<env->GetArrayLength(argv)-1; i++) {
+        jobject argument = env->GetObjectArrayElement(argv, i);
+        args.append(parseArgument(env, drv, env->GetObjectArrayElement(argv, i)));
+    }
+    funcArgs.append(parseArgument(env, drv, env->GetObjectArrayElement(argv, i)));
+
+    WebCore::String functionName("f");
+    JSC::JSObject* jsFunctionObj = JSC::constructFunction(
+            state, funcArgs, Identifier(state, functionName), UString(""), lineNumber);
+    if (state->hadException() || !jsFunctionObj) {
+        printf ("Exception argument \n");
+        return processException(env, state, state->exception());
+    }
+    JSFunction *jsFunction = static_cast<JSFunction*>(jsFunctionObj);
+
+    JSC::JSValue jsValue = jsFunction->call(state, state->globalThisValue(), args);
+    if (state->hadException() || !jsValue) {
+        return processException(env, state, state->exception());
+    }
+
+    waitFrameLoaded(drv->GetFrame());
+#if ENABLE(CLIENT_BASED_GEOLOCATION)
+    while (drv->GetGeolocationClient()->isBusy() && Headless::processTimer())
+        // waiting for Geolocation
+        ;
+#endif
+    ObjectSet set;
+    JSC::JSObject* cycle = NULL;
+    return getObjectFromValue(env, obj, state, jsValue /*value.jsValue()*/, set, &cycle);
+}
+
+
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementById(JNIEnv *env, jobject obj, jlong ref, jstring query ){
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    WebCore::Document *doc = drv->GetFrame()->document();
+
+    jlong jresult = 0 ;
+    if(doc == NULL){
+        return jresult;
+    }
+
+    String strResult;
+    WebCore::String  strQuery = env->GetStringUTFChars(query, NULL);
+    Headless::processExpiredTimers();
+    Element* elem = doc->getElementById(strQuery);
+    *(Element **)&jresult = elem;
+    return jresult;
+}
+
+bool isBlockLevel(Node* element) {
+    if (element->isHTMLElement() && (
+            element->hasTagName(HTMLNames::pTag) ||
+            element->hasTagName(HTMLNames::h1Tag) ||
+            element->hasTagName(HTMLNames::h2Tag) ||
+            element->hasTagName(HTMLNames::h3Tag) ||
+            element->hasTagName(HTMLNames::h4Tag) ||
+            element->hasTagName(HTMLNames::h5Tag) ||
+            element->hasTagName(HTMLNames::h6Tag) ||
+            element->hasTagName(HTMLNames::dlTag) ||
+            element->hasTagName(HTMLNames::divTag) ||
+            element->hasTagName(HTMLNames::noscriptTag) ||
+            element->hasTagName(HTMLNames::blockquoteTag) ||
+            element->hasTagName(HTMLNames::formTag) ||
+            element->hasTagName(HTMLNames::hrTag) ||
+            element->hasTagName(HTMLNames::tableTag) ||
+            element->hasTagName(HTMLNames::fieldsetTag) ||
+            element->hasTagName(HTMLNames::addressTag) ||
+            element->hasTagName(HTMLNames::ulTag) ||
+            element->hasTagName(HTMLNames::olTag) ||
+            element->hasTagName(HTMLNames::preTag) ||
+            element->hasTagName(HTMLNames::brTag)
+            ))
+        return true;
+    return false;
+}
+
+WebCore::String collapseWhiteSpace(WebCore::String str) {
+    //TODO speed up the function, append arrays
+    int len = 0;
+    int i = 0;
+    String buf;
+    while (i < str.length()) {
+        if (isSpaceOrNewline(str[i]) || str[i] == 160 || str[i] == '\t') {
+            if (!len) len = 1;
+            else len++;
+        } else {
+            if (len) {
+                if (len > 1) buf.append(" ");
+                else buf.append(str[i-1]);
+                len = 0;
+            }
+            buf.append(str[i]);
+        }
+        i++;
+    }
+    return buf;
+}
+
+void getTextFromNode(Node* node, WebCore::String& input, WebCore::String& output) {
+    // TODO preformatted text, helper functions
+    if (!node || node->hasTagName(HTMLNames::scriptTag))
+        return;
+
+    if (node->isTextNode() && isVisible(node, false))
+        input += node->textContent();
+
+    if (isBlockLevel(node)) {
+        output += collapseWhiteSpace(input);
+        input = "";
+        if (output.length() && (output.right(1) != String("\n"))) {
+            if (output.right(1) == " ") output.remove(output.length()-1);
+            output += "\n";
+        }
+    }
+
+
+    for (Node* child = node->firstChild(); child; child = child->nextSibling())
+        getTextFromNode(child, input, output);
+
+    if (isBlockLevel(node)) {
+        output += collapseWhiteSpace(input);
+        input = "";
+        if (output.length() && (output.right(1) != String("\n"))) {
+            if (output.right(1) == " ") output.remove(output.length()-1);
+            output += "\n";
+        }
+    }
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getText(JNIEnv *env, jobject obj,
+                                                                              jlong ref){
+    WebCore::Element *element = (WebCore::Element *) 0 ;
+    element = *(WebCore::Element **)&ref;
+    if(element == NULL){
+        return env->NewStringUTF("Element was not found. TODO thrown Exception");
+    }
+    Headless::processExpiredTimers();
+    String str = "";
+    String result = "";
+    getTextFromNode(element, str, result);
+    if (str.length() > 0) result += collapseWhiteSpace(str);
+    return env->NewString((unsigned short *)result.characters(), result.length());
+}
+
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setCookie(JNIEnv *env, jobject obj, jlong ref, jstring cookies)
+{
+    WebKitDriver *drv = (WebKitDriver*)ref;
+    Frame *frame      = drv->GetFrame();
+    Document *doc     = frame->document();
+
+    if (!doc)
+        return 0;
+
+    if (frame->loader()->responseMIMEType() != "text/html")
+        return 0;
+
+    const String cookieStr(env->GetStringUTFChars(cookies, NULL));
+    ExceptionCode ec = 0;
+
+    doc->setCookie(cookieStr, ec);
+
+    return ec ? 0 : 1;
+}
+
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_cookies(JNIEnv *env, jobject obj, jlong ref)
+{
+    WebKitDriver *drv = (WebKitDriver*)ref;
+    Frame *frame      = drv->GetFrame();
+    Document *doc     = frame->document();
+    jstring emptyStr  = env->NewStringUTF("");
+
+    if (!doc)
+        return emptyStr;
+
+    ExceptionCode ec = 0;
+
+    String cookieStr = doc->cookie(ec);
+
+    if (ec)
+        return emptyStr;
+
+    return env->NewString((unsigned short *)cookieStr.characters(), cookieStr.length());
+}
+
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getCookieJar(JNIEnv *env, jobject obj, jlong ref)
+{
+    KURL url;
+
+    if (ref)
+    {
+        WebKitDriver *drv = (WebKitDriver*)ref;
+        Frame *frame      = drv->GetFrame();
+        Document *doc     = frame->document();
+        jstring emptyStr  = env->NewStringUTF("");
+
+        if (!doc)
+            return emptyStr;
+
+        // --- Do nothing if url should be but is empty ---
+        url = doc->cookieURL();
+
+        if (url.isEmpty())
+            return emptyStr;
+    }
+
+    String cookieStr = getCookieJar(url);
+
+    return env->NewString((unsigned short *)cookieStr.characters(), cookieStr.length());
+}
+
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setCookieJar(JNIEnv *env, jobject obj, jlong ref, jstring cookies)
+{
+    if (!ref)
+        return 0;
+
+    WebKitDriver *drv = (WebKitDriver*)ref;
+    Frame *frame      = drv->GetFrame();
+    Document *doc     = frame->document();
+
+    if (!doc)
+        return 0;
+
+    // --- Do nothing if url should be but is empty ---
+    const KURL url = doc->cookieURL();
+    if (url.isEmpty())
+        return 0;
+
+    const String rawCookie(env->GetStringUTFChars(cookies, NULL));
+
+    setCookieJar(url, rawCookie);
+
+    return 1;
+}
+
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_deleteCookie(JNIEnv *env, jobject obj, jlong ref, jstring cName)
+{
+    KURL url;
+    String name;
+
+    // --- Clear all cookies for all documents ---
+    if (!ref)
+    {
+        deleteCookie(NULL, url, name);
+        return 1;
+    }
+
+    // --- Delete cookies for given document ---
+    WebKitDriver *drv = (WebKitDriver*)ref;
+    Frame *frame      = drv->GetFrame();
+    Document *doc     = frame->document();
+
+    if (!doc)
+        return 0;
+
+    // --- Do nothing if url should be but is empty ---
+    url = doc->cookieURL();
+    if (url.isEmpty())
+        return 0;
+
+    // --- For "all names" cName may be null or empty ---
+    if (cName)
+        name = env->GetStringUTFChars(cName, NULL);
+
+    deleteCookie(NULL, url, name);
+
+    return 1;
+}
+
+
+//element
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getTagName(JNIEnv *env, jobject obj, jlong ref){
+    WebCore::Element *element = (WebCore::Element *) 0 ;
+    element = *(WebCore::Element **)&ref;
+    if(element == NULL){
+        return env->NewStringUTF("Element was not found. TODO thrown Exception");
+    }
+    Headless::processExpiredTimers();
+    String str = element->tagName();
+    return env->NewString((unsigned short *)str.characters(),str.length());
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAttribute(JNIEnv *env, jobject obj, jlong ref, jstring name){
+    WebCore::Element *element = (WebCore::Element *) 0 ;
+    element = *(WebCore::Element **)&ref;
+    if(element == NULL){
+        return env->NewStringUTF("Element was not found. TODO thrown Exception");
+    }
+    WebCore::String  strQuery = to_string(env, name);
+    Headless::processExpiredTimers();
+    if (!element->hasAttribute(strQuery))
+    return NULL;
+    String str = element->getAttribute(strQuery);
+    return env->NewString((unsigned short *)str.characters(),str.length());
+}
+
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getProperty(JNIEnv *env, jobject obj,jlong ref, jstring name) {
+    Element *element = *(Element **)&ref;
+    String str = getProperty(element, to_string(env, name));
+    if (!str.length()) return NULL;
+    return env->NewString((unsigned short *)str.characters(),str.length());
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getValue(JNIEnv *env, jobject obj, jlong ref){
+
+    WebCore::Element *element = (WebCore::Element *) 0 ;
+    element = *(WebCore::Element **)&ref;
+    if(!element)
+        return 0;
+
+    String str;
+    Headless::processExpiredTimers();
+    HTMLInputElement *inputElement = (HTMLInputElement*)toInputElement(element);
+    if (!inputElement) {
+        if (element->nodeName() == "TEXTAREA") {
+            str = ((HTMLTextAreaElement*)element)->value();
+        } else
+            return 0;
+    } else {
+        // Special handling of FILE elements - return full file path
+        if (inputElement->inputType() == HTMLInputElement::FILE) {
+            FileList *fl = inputElement->files();
+            if (!fl->isEmpty())
+                str = fl->item(0)->path();
+        } else {
+            str = inputElement->value();
+        }
+    }
+
+    return env->NewString((unsigned short *)str.characters(),str.length());
+}
+
+static void releaseModifiers(Element* element, int modifiers)
+{
+    if (modifiers & PlatformKeyboardEvent::ShiftKey) {
+        keyEvent(PlatformKeyboardEvent::KeyUp, UNICODE_SHIFT, 0, element);
+    }
+    if (modifiers & PlatformKeyboardEvent::CtrlKey) {
+        keyEvent(PlatformKeyboardEvent::KeyUp, UNICODE_CONTROL, 0, element);
+    }
+    if (modifiers & PlatformKeyboardEvent::AltKey) {
+        keyEvent(PlatformKeyboardEvent::KeyUp, UNICODE_ALT, 0, element);
+    }
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_sendKeys(JNIEnv *env, jobject obj,jlong ref, jstring val) {
+
+    static String upperNumerics = "~!@#$%^&*()_+{}:\"<>?|~";
+    WebCore::Element *element = (WebCore::Element *) 0 ;
+    element = *(WebCore::Element **)&ref;
+    if(element == NULL){
+        return 0;
+    }
+    element->focus();
+    String s = to_string(env, val);
+    HTMLInputElement *inputElement = (HTMLInputElement*)toInputElement(element);
+    if (inputElement) {
+        // Filename value can not be changes with sendKeys, because of platform-specific
+        // file selection dialog. Treat it separately.
+        if (inputElement->inputType() == HTMLInputElement::FILE) {
+            // Only single file selection for now.
+            // TODO: sendKeys semantics for selecting multiple files TBD
+            Vector<String> v(1);
+            v[0]=s;
+            inputElement->setFileListFromRenderer(v);
+            element->dispatchEvent(Event::create(eventNames().changeEvent, true, false));
+            Headless::processExpiredTimers();
+            return 1;
+        }
+    }
+
+    if (element->nodeName() == "TEXTAREA") {
+        element->document()->frame()->selection()->modify(SelectionController::MOVE, SelectionController::FORWARD, DocumentBoundary, true);
+    }
+
+    int modifiers = 0;
+    bool local_shift;
+    for (int i=0; i<s.length(); i++) {
+        UChar c = s[i];
+        // Handle modifier keys here, as they act for the whole key sequence
+        switch(c) {
+            case UNICODE_SHIFT:
+                keyEvent(PlatformKeyboardEvent::RawKeyDown, c, modifiers, element);
+                modifiers |= PlatformKeyboardEvent::ShiftKey;
+                break;
+            case WebCore::UNICODE_CONTROL:
+                keyEvent(PlatformKeyboardEvent::RawKeyDown, c, modifiers, element);
+                modifiers |= PlatformKeyboardEvent::CtrlKey;
+                break;
+            case WebCore::UNICODE_ALT:
+                keyEvent(PlatformKeyboardEvent::RawKeyDown, c, modifiers, element);
+                modifiers |= PlatformKeyboardEvent::AltKey;
+                break;
+            case UNICODE_NULL:
+                releaseModifiers(element, modifiers);
+                modifiers = 0;
+                break;
+            default:
+                String lowerChar;
+                lowerChar.append(c);
+                local_shift = false;
+                if (lowerChar.lower()[0] != c || upperNumerics.contains(c)) {
+                    local_shift = (modifiers & PlatformKeyboardEvent::ShiftKey) == 0;
+                }
+                if (local_shift) {
+                    keyEvent(PlatformKeyboardEvent::RawKeyDown, UNICODE_SHIFT, modifiers, element);
+                    modifiers |= PlatformKeyboardEvent::ShiftKey;
+                }
+                bool ok = keyEvent(PlatformKeyboardEvent::RawKeyDown, c, modifiers, element);
+                keyEvent(PlatformKeyboardEvent::Char, c, modifiers, element, !ok);
+                keyEvent(PlatformKeyboardEvent::KeyUp, c, modifiers, element);
+
+                if (local_shift) {
+                    modifiers ^= PlatformKeyboardEvent::ShiftKey;
+                    keyEvent(PlatformKeyboardEvent::KeyUp, UNICODE_SHIFT, modifiers, element);
+                }
+        }
+    }
+    releaseModifiers(element, modifiers);
+
+    Headless::processExpiredTimers();
+    waitFrameLoaded(element->document()->frame());
+    return 1;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setValue(JNIEnv *env, jobject obj,jlong ref, jstring val){
+
+    WebCore::Element *element = (WebCore::Element *) 0 ;
+    element = *(WebCore::Element **)&ref;
+    if(element == NULL){
+        return 0;
+    }
+    element->focus();
+
+    WebCore::InputElement *inputElement = toInputElement(element);
+    if (!inputElement) {
+        if (element->nodeName() == "TEXTAREA") {
+            ((HTMLTextAreaElement*)element)->setValue(to_string(env, val));
+            element->dispatchEvent(Event::create(eventNames().changeEvent, true, false));
+            Headless::processExpiredTimers();
+            return 1;
+        }
+    } else {
+        inputElement->setValue(to_string(env, val), true);
+        element->dispatchEvent(Event::create(eventNames().changeEvent, true, false));
+        Headless::processExpiredTimers();
+        return 1;
+    }
+
+    element->dispatchEvent(Event::create(eventNames().changeEvent, true, false));
+    Headless::processExpiredTimers();
+    return 0;
+}
+
+//node
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementsByTagName(JNIEnv *env, jobject obj,
+                                                                              jlong ref, jstring query){
+    WebCore::Node *doc = (WebCore::Node *) 0 ;
+    doc = *(WebCore::Node **)&ref;
+    jlong jresult = 0 ;
+    if(doc == NULL){
+        return jresult;
+    }
+
+    String strResult;
+    WebCore::String  strQuery = to_string(env, query);
+    Headless::processExpiredTimers();
+    RefPtr<WebCore::NodeList> elements = doc->getElementsByTagName(strQuery);
+    *(NodeList **)&jresult = elements.get();
+    // Increase reference counter, so NodeList is alive after leaving the function
+    elements.get()->ref();
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementsByName(JNIEnv *env, jobject obj,
+                                                                              jlong ref, jstring query){
+    WebCore::Node *doc = (WebCore::Node *) 0 ;
+    doc = *(WebCore::Node **)&ref;
+    jlong jresult = 0 ;
+    if(doc == NULL){
+        return jresult;
+    }
+
+    String strResult;
+    WebCore::String  strQuery = to_string(env, query);
+    Headless::processExpiredTimers();
+    RefPtr<WebCore::NodeList> elements = doc->getElementsByName(strQuery);
+    *(NodeList **)&jresult = elements.get();
+    // Increase reference counter, so NodeList is alive after leaving the function
+    elements.get()->ref();
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementsByXpath(JNIEnv *env, jobject obj, jlong ref, jstring query)
+{
+    Node *context = *(Node **)&ref ;
+    jlong jresult = 0 ;
+    if(context == NULL){
+        return jresult;
+    }
+
+    RefPtr<NodeList> nodes;
+    Vector<RefPtr<Node> > nodevector;
+
+    ExceptionCode ec = 0;
+
+    const String xpath = to_string(env, query);
+
+    Headless::processExpiredTimers();
+    PassRefPtr<XPathResult> xpathResult =
+        context->document()->evaluate(xpath,
+        context,
+        0, // namespace
+        XPathResult::ORDERED_NODE_ITERATOR_TYPE,
+        0, // XPathResult object
+        ec);
+    if (!xpathResult.get())
+        return 0;
+
+    Node* node;
+    while ( 0 != (node = xpathResult->iterateNext(ec))) {
+        nodevector.append(node);
+    }
+    nodes = StaticNodeList::adopt(nodevector);
+    *(NodeList**)&jresult = nodes.get();
+    // Increase reference counter, so NodeList is alive after leaving the function
+    nodes.get()->ref();
+    return jresult;
+}
+
+//NodeList
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_nodeListLength(JNIEnv *env, jobject obj,jlong ref){
+    NodeList *list = *(NodeList**)&ref;
+    if(!list){
+        return -1;
+    }
+    return list->length();
+}
+
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_nodeListGet(JNIEnv *env, jobject obj,
+                                                                              jlong ref, jint i){
+    jlong jresult = 0 ;
+    NodeList *list = *(NodeList**)&ref;
+    if(!list){
+        return 0;
+    }
+    Node* elem = list->item(i);
+    *(Node **)&jresult = elem;
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_nodeListRelease(JNIEnv *env, jobject obj,jlong ref) {
+    NodeList* list = *(NodeList**)&ref;
+    if(list) {
+        list->deref();
+    }
+    return 1;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_goBack(JNIEnv *env, jobject obj, jlong ref){
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    drv->GoBack();
+}
+
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_goForward(JNIEnv *env, jobject obj, jlong ref){
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    drv->GoForward();
+}
+
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_refresh(JNIEnv *env, jobject obj, jlong ref){
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    drv->Reload();
+    return waitFrameLoaded(drv->GetFrame());
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_submit(JNIEnv *env, jobject obj, jlong ref)
+{
+    jlong jresult = 0;
+    Element *element = *(Element **)&ref;
+    if(!element || !element->isHTMLElement()){
+        return jresult;
+    }
+
+    HTMLFormElement *form = 0;
+    // Weird, but form() method implementation looks for form starting from parent node.
+    // Thus, need to check for form element manually.
+    if (element->nodeName() == "FORM")
+          form = (HTMLFormElement*)element;
+    else {
+        form = ((HTMLElement*)element)->form();
+        if (!form) {
+            printf("Form not found!\n");
+            return jresult;
+        }
+    }
+    form->prepareSubmit(0);
+    Headless::processExpiredTimers();
+    waitFrameLoaded(element->document()->frame());
+    jresult = 1;
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_click(JNIEnv *env, jobject obj, jlong ref)
+{
+    jlong jresult = 0;
+    Element *element = *(Element **)&ref;
+    if(!element){
+        return jresult;
+    }
+    mouseEvent(eventNames().mouseoverEvent, element);
+    mouseEvent(eventNames().mousemoveEvent, element);
+    mouseEvent(eventNames().mousedownEvent, element);
+    if (element->isFocusable())
+        element->focus();
+    else {
+        // If we click on an element which can not be focused, remve
+        // focus from currently focused element.
+        Element *focused = (Element*)element->document()->focusedNode();
+        if (focused && element != focused)
+            focused->blur();
+    }
+    mouseEvent(eventNames().mouseupEvent, element);
+    mouseEvent(eventNames().clickEvent, element);
+    waitFrameLoaded(element->document()->frame());
+    jresult = 1;
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_reset(JNIEnv *env, jobject obj, jlong ref)
+{
+    jlong jresult = 0;
+    Element *element = *(Element **)&ref;
+    if(!element || !element->isHTMLElement() || ! toInputElement(element)){
+        return jresult;
+    }
+    ((HTMLInputElement*)element)->reset();
+        element->dispatchEvent(Event::create(eventNames().changeEvent, true, false));
+        Headless::processExpiredTimers();
+    jresult = 1;
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_toggle(JNIEnv *env, jobject obj, jlong ref)
+{
+    jlong jresult = -1;
+    Element *element = *(Element **)&ref;
+    if(!element || !element->isHTMLElement()){
+        return jresult;
+    }
+
+    if (toInputElement(element)) {
+        HTMLInputElement *input = static_cast<HTMLInputElement*>(element);
+        if (input->inputType() == HTMLInputElement::CHECKBOX) {
+            input->setChecked( ! input->checked() );
+            element->dispatchEvent(Event::create(eventNames().changeEvent, true, false));
+            jresult = input->checked();
+        }
+    } else if (toOptionElement(element)) {
+        HTMLOptionElement *option = static_cast<HTMLOptionElement*>(element);
+        HTMLSelectElement *select = option->ownerSelectElement();
+        if (select->multiple()) {
+            option->setSelected( ! option->selected() );
+            option->dispatchEvent(Event::create(eventNames().changeEvent, true, false));
+            jresult = option->selected();
+        }
+    } else {
+        printf("Invalid element for selection\n");
+        return -1;
+    }
+    waitFrameLoaded(element->document()->frame());
+
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_focus(JNIEnv *env, jobject obj, jlong ref)
+{
+    Element *element = *(Element **)&ref;
+    if(!element || !element->isHTMLElement()){
+        return 0;
+    }
+    element->focus();
+    Headless::processExpiredTimers();
+    return 1;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_selected(JNIEnv *env, jobject obj, jlong ref)
+{
+    jlong jresult = -1;
+    Element *element = *(Element **)&ref;
+    Headless::processExpiredTimers();
+    if (toInputElement(element)) {
+        HTMLInputElement *input = static_cast<HTMLInputElement*>(element);
+        jresult = input->checked();
+    } else if (toOptionElement(element)) {
+        HTMLOptionElement *option = static_cast<HTMLOptionElement*>(element);
+        jresult = option->selected();
+    }
+
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setSelected(JNIEnv *env, jobject obj, jlong ref)
+{
+    Element *element = *(Element **)&ref;
+    bool changed = false;
+    if (toInputElement(element)) {
+        HTMLInputElement *input = static_cast<HTMLInputElement*>(element);
+        if (!input->checked()) {
+            input->setChecked(true);
+            changed = true;
+        }
+    } else if (toOptionElement(element)) {
+        HTMLOptionElement *option = static_cast<HTMLOptionElement*>(element);
+        if (!option->selected()) {
+            option->setSelected(true);
+            changed = true;
+        }
+    } else {
+        return -1;
+    }
+
+    if (changed) {
+        element->dispatchEvent(Event::create(eventNames().changeEvent, true, false));
+        waitFrameLoaded(element->document()->frame());
+    }
+
+    return 0;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_optionIndex(JNIEnv *env, jobject obj, jlong ref)
+{
+    Element *element = *(Element **)&ref;
+    if(!element || !isOptionElement(element)){
+        return -1;
+    }
+    return ((HTMLOptionElement*)element)->index();
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_stale(JNIEnv *env, jobject obj, jlong ref)
+{
+    Element *element = *(Element **)&ref;
+    if (!element)
+        return -1;
+    if (!element->inDocument())
+        return 1;
+    if (!element->attached())
+        return 1;
+    // TODO: add more checks here
+    return 0;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_activeElement(JNIEnv *env, jobject obj, jlong ref)
+{
+    jlong jresult = 0 ;
+    WebKitDriver *drv = *(WebKitDriver **)&ref;
+    if (!drv)
+        return jresult;
+    Headless::processExpiredTimers();
+    Document *doc = drv->GetFrame()->document();
+    Node *node = doc->focusedNode();
+    if (!node) {
+        RefPtr<WebCore::NodeList> list = doc->getElementsByTagName("body");
+        if (list->length() > 0)
+            node = list->item(0);
+    }
+    *(Node **)&jresult = node;
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_selectWindow(JNIEnv *env, jobject obj, jlong ref, jstring name)
+{
+    jlong jresult = 0;
+    bool ok = false;
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    String  windowName = to_string(env, name);
+    WebKitDriver* ptr = (WebKitDriver*)(windowName.toInt(&ok));
+
+    const HashSet<Page*>& pages = PageGroup::pageGroup("headless")->pages();
+    HashSet<Page*>::const_iterator end = pages.end();
+    Page *found = 0;
+    for (HashSet<Page*>::const_iterator it = pages.begin(); it != end; ++it) {
+        Page* p = *it;
+        if (ok) {
+            FrameLoaderClientHl *client = (FrameLoaderClientHl*)(p->mainFrame()->loader()->client());
+            if(ptr == client->getDriver()) {
+                found = p;
+                break;
+            }
+        }
+        if (windowName == p->mainFrame()->tree()->name().string()) {
+            found = p;
+            break;
+        }
+    }
+    if (found) {
+        FrameLoaderClientHl *client = (FrameLoaderClientHl*)(found->mainFrame()->loader()->client());
+        WebKitDriver *drv = client->getDriver();
+        if (drv) {
+            *(WebKitDriver **)&jresult = drv;
+        }
+    } else {
+        printf("Window not found: [%s]\n", windowName.utf8().data());
+    }
+
+    return jresult;
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getWindowHandle(JNIEnv *env, jobject obj, jlong ref){
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    WebCore::String str = to_window_handle(drv);
+    return env->NewString(str.characters(),str.length());
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAllWindowHandles(JNIEnv *env, jobject obj){
+    const HashSet<Page*>& pages = PageGroup::pageGroup("headless")->pages();
+    HashSet<Page*>::const_iterator end = pages.end();
+    WebCore::String str;
+    int i = 0;
+    for (HashSet<Page*>::const_iterator it = pages.begin(); it != end; ++it,i++) {
+        Page* p = *it;
+        FrameLoaderClientHl *client = (FrameLoaderClientHl*)(p->mainFrame()->loader()->client());
+        WebKitDriver *next = client->getDriver();
+        if(next) {
+            if (i)
+                str.append(',');
+            str.append( to_window_handle(next) );
+        }
+    }
+    return env->NewString(str.characters(),str.length());
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_selectFrameByName(JNIEnv *env, jobject obj, jlong ref, jstring name)
+{
+    jlong jresult = 0;
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    String  frameName = to_string(env, name);
+
+    Vector<String> list;
+    frameName.split(".", list);
+    int count = list.size();
+    bool ok = false;
+    Frame *frame = drv->GetMainFrame();
+    for (int i=0;i<count;i++) {
+        int idx = list[i].toUInt(&ok);
+        if (ok) {
+            frame = frame->tree()->child(idx);
+        } else {
+            frame = frame->tree()->child(list[i]);
+        }
+        if (!frame)
+            return jresult;
+    }
+    drv->SetFrame(frame);
+    jresult = 1;
+
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_selectFrameByIdx(JNIEnv *env, jobject obj, jlong ref, jlong idx)
+{
+    jlong jresult = 0;
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    Frame *frame = drv->GetMainFrame()->tree()->child(idx);
+    if (!frame)
+        return jresult;
+
+    drv->SetFrame(frame);
+    jresult = 1;
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_defaultContent(JNIEnv *env, jobject obj, jlong ref)
+{
+    jlong jresult = 0;
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    drv->SetFrame(drv->GetMainFrame());
+    jresult = 1;
+    return jresult;
+}
+
+JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_isVisible(JNIEnv *env, jobject obj, jlong ref) {
+    WebCore::Element *element = (WebCore::Element *) 0 ;
+    element = *(WebCore::Element **)&ref;
+    return isVisible(element);
+}
+
+JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getRect(JNIEnv *env, jobject obj, jlong ref) {
+    WebCore::Element *node = (WebCore::Element *) 0 ;
+    node = *(WebCore::Element **)&ref;
+    IntRect r = node->getRect();
+    /* Calculate coordinates relative to body coordinates */
+    IntRect pr = node->document()->body()->getRect();
+    jclass objClass = env->FindClass("java/awt/Rectangle");
+    jmethodID cid = env->GetMethodID(objClass, "<init>", "(IIII)V");
+    jobject result = env->NewObject(objClass, cid, r.x()-pr.x(), r.y()-pr.y(), r.width(), r.height());
+    env->DeleteLocalRef(objClass);
+    return result;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_drag(JNIEnv *env,
+    jobject obj, jlong ref, jint toX, jint toY, jint duration)
+{
+    jlong jresult = 0;
+    Element *element = (Element*)ref;
+    HTMLElement *htmlElement = (HTMLElement*)element;
+
+    if(!element || !element->isHTMLElement() || !htmlElement->draggable()){
+        return jresult;
+    }
+
+    mouseEvent(eventNames().mousemoveEvent, element);
+    mouseEvent(eventNames().mousedownEvent, element);
+    mouseEvent(eventNames().dragEvent, element);
+
+    // --- Delay ---
+    const struct timespec delay = {duration / 1000, 1000000 * (duration % 1000) };
+    nanosleep(&delay, NULL);
+
+    mouseEvent(eventNames().mousemoveEvent, element, toX, toY);
+    mouseEvent(eventNames().mouseupEvent, element);
+    mouseEvent(eventNames().dropEvent, element);
+
+    jresult = 1;
+    return jresult;
+}
+
+JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setPosition(JNIEnv *env, jobject obj, jlong ref, jobject geolocation) {
+#if ENABLE(CLIENT_BASED_GEOLOCATION)
+    WebKitDriver *drv = (WebKitDriver*)ref;
+
+    jclass objClass = env->FindClass("org/openqa/selenium/GeoLocation");
+    jmethodID alid = env->GetMethodID(objClass, "getAltitude", "()D");
+    jmethodID laid = env->GetMethodID(objClass, "getLatitude", "()D");
+    jmethodID loid = env->GetMethodID(objClass, "getLongitude", "()D");
+    double altitude = env->CallDoubleMethod(geolocation, alid);
+    double latitude = env->CallDoubleMethod(geolocation, laid);
+    double longitude = env->CallDoubleMethod(geolocation, loid);
+    // we don't use timestamps, accuracy currently
+    double timestamp = 0;
+    double accuracy = 0;
+
+    drv->GetGeolocationClient()->setPosition(GeolocationPosition::create(timestamp, latitude, longitude, accuracy, 
+            true, altitude, false, 0, false, 0, false, 0));
+    env->DeleteLocalRef(objClass);
+#endif
+}
+
+JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getPosition(JNIEnv *env, jobject obj, jlong ref) {
+    WebKitDriver *drv = (WebKitDriver*)ref;
+    jobject result = 0;
+#if ENABLE(CLIENT_BASED_GEOLOCATION)
+    GeolocationPosition* geoPosition = drv->GetFrame()->page()->geolocationController()->lastPosition();
+
+    jclass objClass = env->FindClass("org/openqa/selenium/GeoLocation");
+    jmethodID cid = env->GetMethodID(objClass, "<init>", "(DDD)V");
+    result = env->NewObject(objClass, cid, geoPosition->latitude(), geoPosition->longitude(), geoPosition->altitude());
+    env->DeleteLocalRef(objClass);
+#endif
+    return result;
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAlertText(JNIEnv *env, jobject obj, jlong ref, jboolean clr)
+{
+    WebKitDriver *drv = (WebKitDriver*)ref;
+    Frame *frame = drv->GetMainFrame();
+
+    if (!frame)
+        return NULL;
+
+    Page *page = frame->page();
+    if (!page)
+        return NULL;
+
+    if (frame != page->mainFrame())
+        return NULL;
+
+    ChromeClientHl *client = static_cast<ChromeClientHl*>(page->chrome()->client());
+    String &str = client->accessAlertText();
+
+    if (str.isNull())
+        return NULL;
+
+    String resStr = str;
+
+    if (clr)
+        str = String();
+
+    return env->NewString((unsigned short *)resStr.characters(), resStr.length());
+}
+
+JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_online(JNIEnv *env, jobject obj)
+{
+    return networkStateNotifier().onLine();
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setOnline(JNIEnv *env, jobject obj, jboolean online)
+{
+    networkStateNotifier().networkStateChange(online);
+    return 0;
+}
+
+JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCache(JNIEnv *env, jobject obj, jlong ref) {
+    WebKitDriver *drv = *(WebKitDriver **)&ref;
+
+    // Create empty ArrayList
+    jclass objClass = env->FindClass("java/util/ArrayList");
+    jmethodID cid = env->GetMethodID(objClass, "<init>", "()V");
+    jobject result = env->NewObject(objClass, cid);
+
+#if ENABLE(OFFLINE_WEB_APPLICATIONS)
+    DocumentLoader *loader = drv->GetMainFrame()->loader()->activeDocumentLoader();
+    ApplicationCache *cache = ApplicationCacheGroup::cacheForMainRequest(loader->request(), loader);
+    if (cache) {
+        jobject entry;
+        jclass entryClass = env->FindClass("org/openqa/selenium/CacheEntry");
+        for(ApplicationCache::ResourceMap::const_iterator it = cache->begin(); it != cache->end(); ++it) {
+            // Create CacheEntry object
+            cid = env->GetMethodID(entryClass, "<init>", "()V");
+            entry = env->NewObject(entryClass, cid);
+            // Populate created object with cache resource values
+            if (entry) {
+                String str;
+
+                // Set cache entry url
+                str = it->second->url().string();
+                cid = env->GetMethodID(entryClass, "setUrl", "(Ljava/lang/String;)V");
+                env->CallVoidMethod(entry, cid, env->NewString(str.characters(),str.length()));
+
+                // Set cache entry MIME type
+                str = it->second->response().mimeType();
+                cid = env->GetMethodID(entryClass, "setMimeType", "(Ljava/lang/String;)V");
+                env->CallVoidMethod(entry, cid, env->NewString(str.characters(),str.length()));
+
+                // Set cache entry HTTP status code
+                cid = env->GetMethodID(entryClass, "setStatusCode", "(I)V");
+                env->CallVoidMethod(entry, cid, it->second->response().httpStatusCode());
+
+                // Add object to resulting list
+                cid = env->GetMethodID(objClass, "add", "(Ljava/lang/Object;)Z");
+                env->CallBooleanMethod(result, cid, entry);
+            }
+        }
+        env->DeleteLocalRef(entryClass);
+    }
+#endif
+    env->DeleteLocalRef(objClass);
+    // Return ArrayList populated with CacheEntry objects
+    return result;
+}
