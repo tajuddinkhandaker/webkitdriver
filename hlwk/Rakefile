@@ -293,53 +293,5 @@ task :clean do
     sh "rm #{install_dir}/*" 
 end
 
-webdriver_dir = 'WebDriver'
-directory( webdriver_dir )
-
-task :webdriver_build do
-    Dir.chdir( webdriver_dir ) do
-        sh "rake common test_common"
-    end
-end
-
-task :webdriver_java => [ :webdriver_build ] do
-    require webdriver_dir + '/rake-tasks/task-gen' 
-    require webdriver_dir + '/rake-tasks/checks' 
-    require webdriver_dir + '/rake-tasks/zip' 
-    require webdriver_dir + '/rake-tasks/java' 
-
-    java_jar(:name => 'webdriver-hlwk',
-             :deps => [ 'build/webdriver-common.jar' ],
-             :srcs => ["../WebKit/hl/WebDriver/src/java/**/*.java"])
-
-    extra_jars = []
-    Dir.chdir( webdriver_dir ) do
-        extra_jars = Dir.glob("common/lib/buildtime/*.jar")
-    end
-    java_test(:name => "webdriver-hlwk-test",
-              :srcs  => [ "../WebKit/hl/WebDriver/test/java/**/*.java" ],
-              :deps =>  [ 'build/webdriver-common.jar', 
-                          'build/webdriver-common-test.jar',
-                          'third_party/java/junit/junit-dep-4.8.1.jar',
-                          'webdriver-hlwk'] + extra_jars)
-end
-
-task :cd_webdriver do
-    CurDir = Dir.getwd()
-    Dir.chdir( webdriver_dir )
-end
-
-task :cd_cur do
-    Dir.chdir( CurDir )
-end
-
-task :setup_env do
-  ENV['LD_LIBRARY_PATH'] = '../WebKitBuild/Release'
-end
-
-task :webdriver_hlwk_wrap => [ :cd_webdriver, 'webdriver-hlwk', :setup_env, 
-                               'webdriver-hlwk-test', :cd_cur]
-task :webdriver => [:default, :webdriver_java, 'webdriver_hlwk_wrap']
-
 task :default => [ 'jsc', 'libhlwk.so' ]
 
