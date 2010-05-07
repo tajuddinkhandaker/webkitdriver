@@ -493,12 +493,79 @@ public class WebKitJNI {
   public native long setOnline(boolean online);
 
   /**
+   * Check is media/codec supported for HTMLMediaElement 
+   *
+   * @param ref - reference to HTMLMediaElement
+   * @param contentType - string with content media type and codec info
+   * @return true - content type may be played
+   */
+  public native boolean canPlayType(long ref, String contentType);
+
+  /**
+   * Do play/pause for HTMLMediaElement
+   *
+   * @param ref - reference to HTMLMediaElement
+   * @param doPlay - perform pause() for false and play() for true
+   * @return true - content type may be played
+   */
+  public native void mediaPlay(long ref, boolean doPlay);
+
+  /**
    * Get application cache entries
    *
    * @param ref - reference to controller
    * @return list of cache elements
    */
   public native Object getAppCache(long ref);
+
+  /**
+   * Get number of entries in DOM storage
+   *
+   * @param ref - reference to controller
+   * @param sesson - true for session storage, false for local storage
+   * @return numner of items in a session or local storage, -1 in case of error
+   */
+  public native long storageLength(long ref, boolean session);
+
+  /**
+   * Clear DOM storage
+   *
+   * @param ref - reference to controller
+   * @param sesson - true for session storage, false for local storage
+   * @return true on success, false otherwise
+   */
+  public native boolean storageClear(long ref, boolean session);
+
+  /**
+   * Get DOM storage key by index
+   *
+   * @param ref - reference to controller
+   * @param sesson - true for session storage, false for local storage
+   * @param idx - key index
+   * @return key name
+   */
+  public native String storageKey(long ref, boolean session, long idx);
+
+  /**
+   * Get DOM storage value by key
+   *
+   * @param ref - reference to controller
+   * @param sesson - true for session storage, false for local storage
+   * @param key - key name
+   * @return value for a given key
+   */
+  public native String storageGetValue(long ref, boolean session, String key);
+
+  /**
+   * Set DOM storage value
+   *
+   * @param ref - reference to controller
+   * @param sesson - true for session storage, false for local storage
+   * @param key - key to set
+   * @param value - value to set. If null, key is removed from a storage
+   * @return value for a given key
+   */
+  public native Object storageSetValue(long ref, boolean session, String key, String value);
 
   static {
     System.loadLibrary("hlwk");

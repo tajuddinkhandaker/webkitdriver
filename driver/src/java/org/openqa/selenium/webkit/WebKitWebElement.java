@@ -45,6 +45,7 @@ import org.openqa.selenium.Platform;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.HTML5MediaWebElement;
 import org.openqa.selenium.RenderedWebElement;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.StaleElementReferenceException;
@@ -71,7 +72,7 @@ import static org.openqa.selenium.Keys.RETURN;
 
 public class WebKitWebElement implements WebElement, RenderedWebElement,
     FindsById, FindsByLinkText, FindsByXPath, FindsByTagName, SearchContext,
-    WrapsDriver {
+    WrapsDriver, HTML5MediaWebElement {
 
   protected long element;
   protected WebKitDriver parent;
@@ -495,4 +496,23 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
       throw new ElementNotVisibleException("You may only select visible elements");
     }
   }
+
+  /**
+   * Can a player play this audio or video, (support this codec or not)
+   */
+  public boolean canPlayType(String contentType) {
+      return WebKitJNI.getInstance().canPlayType(element, contentType);
+  }
+
+  /**
+   * Controls
+   */
+  public void play() {
+      WebKitJNI.getInstance().mediaPlay(element, true);
+  }
+
+  public void pause() {
+      WebKitJNI.getInstance().mediaPlay(element, false);
+  }
+
 }

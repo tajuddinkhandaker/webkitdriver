@@ -40,6 +40,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.CacheEntry;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.HTML5Support;
+import org.openqa.selenium.HTML5StorageSupport;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.NoSuchElementException;
@@ -84,7 +85,7 @@ import java.io.IOException;
 
 public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecutor,
         FindsById, FindsByLinkText, FindsByXPath, FindsByName, FindsByTagName,
-        HTML5LocationSupport, HTML5Support {
+        HTML5LocationSupport, HTML5Support, HTML5StorageSupport {
   private long default_controller = 0;
   private long controller = 0;
   private Speed speed = Speed.FAST;
@@ -195,6 +196,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       }
       controller = 0;
       default_controller = 0;
+      WebKitJNI.getInstance().deleteCookie(controller, null);
     }
   }
 
@@ -683,6 +685,98 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             TimeUnit.MILLISECONDS.convert(Math.max(0, time), unit);
         return this;
       }
+  }
+  
+  public class Storage implements Map<String,Object> {
+    private boolean isSession;
+
+    public Storage(boolean isSession) {
+      this.isSession = isSession;
+    }
+
+    public void clear() 
+    {
+      WebKitJNI.getInstance().storageClear(controller, isSession);
+    }
+
+    public boolean containsKey(Object key)
+    {
+      return (null != WebKitJNI.getInstance().storageGetValue(controller, isSession, key.toString()));
+    }
+
+    public boolean containsValue(Object value)
+    {
+      return true;
+    }
+
+    public Set entrySet()
+    {
+      throw new WebDriverException("Can not convert Storage to Set");
+    }
+
+    public boolean equals(Object o)
+    {
+      return hashCode() == o.hashCode();
+    }
+
+    public Object get(Object key)
+    {
+      return WebKitJNI.getInstance().storageGetValue(controller, isSession, key.toString());
+    }
+
+    public int hashCode()
+    {
+      return (int)controller + (isSession ? 1 : 0);
+    }
+
+    public boolean isEmpty()
+    {
+      return (size() == 0);
+    }
+
+    public Set keySet()
+    {
+      throw new WebDriverException("Can not convert Storage to Set");
+    }
+
+    public Object put(String key, Object value)
+    {
+      return WebKitJNI.getInstance().storageSetValue(controller, isSession, 
+                key, value.toString());
+    }
+
+    public void putAll(Map t)
+    {
+      throw new WebDriverException("Can not copy Storage to another map");
+    }
+
+    public Object remove(Object key)
+    {
+      return WebKitJNI.getInstance().storageSetValue(controller, isSession, key.toString(), null);
+    }
+
+    public int size()
+    {
+      long len = WebKitJNI.getInstance().storageLength(controller, isSession);
+      if (len < 0)
+        throw new WebDriverException("Can not access storage");
+      return (int)len;
+    }
+
+    public Collection values()
+    {
+      throw new WebDriverException("Can not convert Storage to Collection");
+    }
+  }
+
+  public Storage getSessionStorage() 
+  {
+    return new Storage(true);
+  }
+
+  public Storage getLocalStorage() 
+  {
+    return new Storage(false);
   }
 
   private static void sleepQuietly(long ms) {
