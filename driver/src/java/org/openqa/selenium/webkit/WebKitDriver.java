@@ -37,9 +37,7 @@ package org.openqa.selenium.webkit;
 
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
-import org.openqa.selenium.CacheEntry;
 import org.openqa.selenium.Cookie;
-import org.openqa.selenium.HTML5Support;
 import org.openqa.selenium.HTML5StorageSupport;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoAlertPresentException;
@@ -53,8 +51,8 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebDriver.Timeouts;
-import org.openqa.selenium.HTML5LocationSupport;
-import org.openqa.selenium.GeoLocation;
+import org.openqa.selenium.html5.AppCacheEntry;
+import org.openqa.selenium.html5.Location;
 import org.openqa.selenium.internal.FindsById;
 import org.openqa.selenium.internal.FindsByLinkText;
 import org.openqa.selenium.internal.FindsByName;
@@ -85,7 +83,7 @@ import java.io.IOException;
 
 public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecutor,
         FindsById, FindsByLinkText, FindsByXPath, FindsByName, FindsByTagName,
-        HTML5LocationSupport, HTML5Support, HTML5StorageSupport {
+        HTML5StorageSupport {
   private long default_controller = 0;
   private long controller = 0;
   private Speed speed = Speed.FAST;
@@ -309,9 +307,9 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     return new ArrayList();
   }
 
-  public List<CacheEntry> getAppCache() 
+  public List<AppCacheEntry> getAppCache() 
   {
-    return (List<CacheEntry>)WebKitJNI.getInstance().getAppCache(controller);
+    return (List<AppCacheEntry>)WebKitJNI.getInstance().getAppCache(controller);
   }
 
   public boolean isOffline() {
@@ -648,13 +646,13 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     return rootNode().findElementsByPartialLinkText(using);
   }
 
-  public GeoLocation getLocation() {
-    GeoLocation location = (GeoLocation)WebKitJNI.getInstance().getPosition(controller);
+  public Location getLocation() {
+    Location location = (Location)WebKitJNI.getInstance().getPosition(controller);
     if (location == null) throw new WebDriverException("Unable to get location");
     return location;
   }
 
-  public void setLocation(GeoLocation location) {
+  public void setLocation(Location location) {
     WebKitJNI.getInstance().setPosition(controller, location);
   }
 
