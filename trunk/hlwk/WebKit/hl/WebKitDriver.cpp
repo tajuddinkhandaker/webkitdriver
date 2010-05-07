@@ -126,7 +126,7 @@ int WebKitDriver::instances = 0;
 // Clean up temporary files and directories if exist
 void WebKitDriver::cleanup()
 {
-    printf("Clean up databases\n");
+    WTFLog(&WebCore::LogStorageAPI, "Clean up databases");
     WebCore::String path = WebCore::DatabaseTracker::tracker().databaseDirectoryPath();
     if (path.isNull())
         return;
@@ -211,11 +211,11 @@ WebKitDriver::WebKitDriver(WebCore::String userAgent) :
             WebCore::String tempDir = WebCore::String::fromUTF8(tempDirName);
             WebCore::DatabaseTracker::tracker().setDatabaseDirectoryPath(tempDir);
             WebCore::cacheStorage().setCacheDirectory(tempDir);
-            setDatabaseEnabled(true);
         } else {
             WTFLog(&WebCore::LogStorageAPI, "Failed to initialize temporary directory, storage API disabled");
         }
     }
+    setDatabaseEnabled(true);
     instances++;
     m_isInitialized = true;
 }

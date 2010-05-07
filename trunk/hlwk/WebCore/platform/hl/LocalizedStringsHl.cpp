@@ -376,4 +376,16 @@ String validationMessageStepMismatchText()
     return String();
 }
 
+String mediaElementLoadingStateText()
+{
+    notImplemented();
+    return String();
+}
+
+String mediaElementLiveBroadcastStateText()
+{
+    notImplemented();
+    return String();
+}
+
 } // namespace WebCore
