@@ -4,7 +4,7 @@ webdriver_dir = '../WebDriver'
 
 task :webdriver_build do
     Dir.chdir( webdriver_dir ) do
-        sh "rake common test_common"
+        sh "./go common test_common"
     end
 end
 
@@ -15,7 +15,7 @@ task :webdriver_java => [ :webdriver_build ] do
     require webdriver_dir + '/rake-tasks/java' 
 
     java_jar(:name => 'webdriver-hlwk',
-             :deps => [ 'build/webdriver-common.jar' ],
+             :deps => [ 'build/common/common.jar' ],
              :srcs => ["../driver/src/java/**/*.java"])
 
     extra_jars = []
@@ -24,8 +24,8 @@ task :webdriver_java => [ :webdriver_build ] do
     end
     java_test(:name => "webdriver-hlwk-test",
               :srcs  => [ "../driver/test/java/**/*.java" ],
-              :deps =>  [ 'build/webdriver-common.jar', 
-                          'build/webdriver-common-test.jar',
+              :deps =>  [ 'build/common/common.jar', 
+                          'build/common/test.jar',
                           'third_party/java/junit/junit-dep-4.8.1.jar',
                           'webdriver-hlwk'] + extra_jars)
 end
