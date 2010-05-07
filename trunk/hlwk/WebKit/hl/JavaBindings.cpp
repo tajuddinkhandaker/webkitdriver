@@ -3,6 +3,7 @@
 #include "ApplicationCacheGroup.h"
 #include "ApplicationCacheResource.h"
 #include "ClientRect.h"
+#include "ContentType.h"
 #include "CString.h"
 #include "CSSComputedStyleDeclaration.h"
 #include "CSSParser.h"
@@ -21,6 +22,7 @@
 #include "HitTestResult.h"
 #include "HTMLFrameOwnerElement.h"
 #include "HTMLElement.h"
+#include "HTMLMediaElement.h"
 #include "HTMLFormElement.h"
 #include "HTMLInputElement.h"
 #include "HTMLOptionElement.h"
@@ -50,6 +52,7 @@
 #include "ScriptSourceCode.h"
 #include "ScriptString.h"
 #include "ScriptValue.h"
+#include "Storage.h"
 #include "SubstituteData.h"
 #include "TextEncoding.h"
 #include "XPathResult.h"
@@ -204,12 +207,12 @@ static bool isVisible(Node* node, bool zeroSizeInvisible = true, bool start = tr
     bool isNone = false;
 
     Element *element = (Element*)node;
-    // Proabably it's better to use renderer to check visibility, but currently
+    // Probably it's better to use renderer to check visibility, but currently
     // we have an issue with selectors they does not have renderer
     if (node->isElementNode()) {
         started = false;
         IntRect rect = getBoundingBoxSize(node);
-        // magic Title tag wich is expected to be visible despite display=none
+        // magic Title tag which is expected to be visible despite display=none
         if (node->nodeName() == "TITLE") return true;
         else if (getProperty((Element*)node, String("display")) == "none") {
             visible =  false;
@@ -1540,6 +1543,28 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setOnline(JNIE
     return 0;
 }
 
+JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_canPlayType
+    (JNIEnv *env, jobject obj, jlong ref, jstring contentTypeStr)
+{
+    HTMLMediaElement *htmlMediaElement = (HTMLMediaElement*)ref;
+
+    String cTypeStr = to_string(env, contentTypeStr);
+    ContentType contentType(cTypeStr);
+
+    return htmlMediaElement->player()->supportsType(contentType);
+}
+
+JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_mediaPlay
+    (JNIEnv *env, jobject obj, jlong ref, jboolean doPlay)
+{
+    HTMLMediaElement *htmlMediaElement = (HTMLMediaElement*)ref;
+
+    if (doPlay)
+        htmlMediaElement->play(false);
+    else
+        htmlMediaElement->pause(false);
+}
+
 JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCache(JNIEnv *env, jobject obj, jlong ref) {
     WebKitDriver *drv = *(WebKitDriver **)&ref;
 
@@ -1588,3 +1613,67 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCache(
     // Return ArrayList populated with CacheEntry objects
     return result;
 }
+
+static Storage *getStorage(WebKitDriver *drv, bool session)
+{
+    if (!drv)
+        return 0;
+    DOMWindow *win = drv->GetFrame()->domWindow();
+    return (session ? win->sessionStorage() : win->localStorage());
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageLength(JNIEnv *env, jobject obj, jlong ref, jboolean session) {
+    Storage *storage = getStorage(*(WebKitDriver **)&ref, session);
+    if (storage)
+        return (jlong)storage->length();
+    return -1;
+}
+
+JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageClear(JNIEnv *env, jobject obj, jlong ref, jboolean session) {
+    Storage *storage = getStorage(*(WebKitDriver **)&ref, session);
+    if (storage) {
+        storage->clear();
+        return true;
+    }
+    return false;
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageKey(JNIEnv *env, jobject obj, jlong ref, jboolean session, jlong idx) {
+    Storage *storage = getStorage(*(WebKitDriver **)&ref, session);
+    if (storage) {
+        String key = storage->key(idx);
+        return env->NewString(key.characters(),key.length());
+    }
+    return 0;
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageGetValue(JNIEnv *env, jobject obj, jlong ref, jboolean session, jstring key) {
+    Storage *storage = getStorage(*(WebKitDriver **)&ref, session);
+    if (storage) {
+        String keyStr = to_string(env, key);
+        String val = storage->getItem(keyStr);
+        return env->NewString(val.characters(),val.length());
+    }
+    return 0;
+}
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageSetValue(JNIEnv *env, jobject obj, jlong ref, jboolean session, jstring key, jstring value) {
+    Storage *storage = getStorage(*(WebKitDriver **)&ref, session);
+    if (storage) {
+        String keyStr = to_string(env, key);
+        String currentValue = storage->getItem(keyStr);
+        ExceptionCode ec = 0;
+        if (value) {
+            String valueStr = to_string(env, value);
+            storage->setItem(keyStr, valueStr, ec);
+        } else {
+            storage->removeItem(keyStr);
+        }
+        if (currentValue.isNull())
+            return 0;
+        else
+            return env->NewString(currentValue.characters(),currentValue.length());
+    }
+    return 0;
+}
+
