@@ -565,7 +565,7 @@ void FrameLoaderClientHl::saveScrollPositionAndViewStateToItem(WebCore::HistoryI
 
 bool FrameLoaderClientHl::canCachePage() const
 {
-    return true;
+    return false;
 }
 
 void FrameLoaderClientHl::setMainDocumentError(WebCore::DocumentLoader*, const WebCore::ResourceError&)
