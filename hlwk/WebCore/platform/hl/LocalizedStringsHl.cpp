@@ -388,4 +388,23 @@ String mediaElementLiveBroadcastStateText()
     return String();
 }
 
+String localizedMediaTimeDescription(float)
+{
+    notImplemented();
+    return String();
+}
+
+String localizedMediaControlElementString(const String&)
+{
+    notImplemented();
+    return String();
+}
+
+String localizedMediaControlElementHelpText(const String&)
+{
+    notImplemented();
+    return String();
+}
+
+
 } // namespace WebCore
