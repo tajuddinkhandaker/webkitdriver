@@ -301,6 +301,9 @@ void EditorClientHl::handleKeyboardEvent(KeyboardEvent* event)
             case 'v': 
                 cmd = "Paste";
                 break;
+            case 'a': 
+                cmd = "SelectAll";
+                break;
         }
     }
     /* If shift modifier is used, and action it to move a cursor - modify selection as well */

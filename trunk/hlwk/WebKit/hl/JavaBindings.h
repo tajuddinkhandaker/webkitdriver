@@ -102,6 +102,7 @@ extern "C" {
         (JNIEnv *env, jobject obj, jlong ref, jstring contentTypeStr);
     JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_mediaPlay
         (JNIEnv *env, jobject obj, jlong ref, jboolean doPlay);
+    JNIEXPORT jint JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCacheStatus(JNIEnv *env, jobject obj, jlong ref);
     JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCache(JNIEnv *env, jobject obj, jlong ref);
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageLength(JNIEnv *env, jobject obj, jlong ref, jboolean session);
     JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageClear(JNIEnv *env, jobject obj, jlong ref, jboolean session);
