@@ -38,6 +38,15 @@ package org.openqa.selenium.webkit;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
+import org.openqa.selenium.html5.ApplicationCache;
+import org.openqa.selenium.html5.AppCacheEntry;
+import org.openqa.selenium.html5.AppCacheType;
+import org.openqa.selenium.html5.AppCacheStatus;
+import org.openqa.selenium.html5.BrowserConnection;
+import org.openqa.selenium.html5.DatabaseStorage;
+import org.openqa.selenium.html5.Location;
+import org.openqa.selenium.html5.LocationContext;
+import org.openqa.selenium.html5.ResultSet;
 import org.openqa.selenium.HTML5StorageSupport;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoAlertPresentException;
@@ -51,8 +60,6 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebDriver.Timeouts;
-import org.openqa.selenium.html5.AppCacheEntry;
-import org.openqa.selenium.html5.Location;
 import org.openqa.selenium.internal.FindsById;
 import org.openqa.selenium.internal.FindsByLinkText;
 import org.openqa.selenium.internal.FindsByName;
@@ -83,6 +90,7 @@ import java.io.IOException;
 
 public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecutor,
         FindsById, FindsByLinkText, FindsByXPath, FindsByName, FindsByTagName,
+        BrowserConnection, ApplicationCache, DatabaseStorage, LocationContext,
         HTML5StorageSupport {
   private long default_controller = 0;
   private long controller = 0;
@@ -302,9 +310,9 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   public void setJavascriptEnabled(boolean enableJavascript) {
   }
 
-  public List<Map<String,Object>> executeSQLQuery(String db, String query, Object... args) 
+  public ResultSet executeSQL(String db, String query, Object... args) 
   {
-    return new ArrayList();
+    return null;
   }
 
   public List<AppCacheEntry> getAppCache() 
@@ -312,17 +320,26 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     return (List<AppCacheEntry>)WebKitJNI.getInstance().getAppCache(controller);
   }
 
-  public boolean isOffline() {
+  public AppCacheStatus status() 
+  {
+    int status = WebKitJNI.getInstance().getAppCacheStatus(controller);
+    if (status < 0) {
+      throw new WebDriverException("Can not determine application cache status");
+    }
+    return AppCacheStatus.values()[status];
+  }
+
+  public boolean isOnline() {
     long state = WebKitJNI.getInstance().online();
-    if (state == 0)
-      return true;
     if (state == 1)
+      return true;
+    if (state == 0)
       return false;
     throw new WebDriverException("Can not determine current network state");
   }
 
-  public void setOffline(boolean offline) {
-    long status = WebKitJNI.getInstance().setOnline(!offline);
+  public void setOnline(boolean online) {
+    long status = WebKitJNI.getInstance().setOnline(online);
     if (status != 0)
       throw new WebDriverException("Can not change current network state");
   }
@@ -646,7 +663,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     return rootNode().findElementsByPartialLinkText(using);
   }
 
-  public Location getLocation() {
+  public Location location() {
     Location location = (Location)WebKitJNI.getInstance().getPosition(controller);
     if (location == null) throw new WebDriverException("Unable to get location");
     return location;

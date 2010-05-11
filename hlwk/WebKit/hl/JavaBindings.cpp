@@ -1472,7 +1472,7 @@ JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setPosition(JNI
 #if ENABLE(CLIENT_BASED_GEOLOCATION)
     WebKitDriver *drv = (WebKitDriver*)ref;
 
-    jclass objClass = env->FindClass("org/openqa/selenium/GeoLocation");
+    jclass objClass = env->FindClass("org/openqa/selenium/html5/Location");
     jmethodID alid = env->GetMethodID(objClass, "getAltitude", "()D");
     jmethodID laid = env->GetMethodID(objClass, "getLatitude", "()D");
     jmethodID loid = env->GetMethodID(objClass, "getLongitude", "()D");
@@ -1495,7 +1495,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getPosition(
 #if ENABLE(CLIENT_BASED_GEOLOCATION)
     GeolocationPosition* geoPosition = drv->GetFrame()->page()->geolocationController()->lastPosition();
 
-    jclass objClass = env->FindClass("org/openqa/selenium/GeoLocation");
+    jclass objClass = env->FindClass("org/openqa/selenium/html5/Location");
     jmethodID cid = env->GetMethodID(objClass, "<init>", "(DDD)V");
     result = env->NewObject(objClass, cid, geoPosition->latitude(), geoPosition->longitude(), geoPosition->altitude());
     env->DeleteLocalRef(objClass);
@@ -1565,6 +1565,17 @@ JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_mediaPlay
         htmlMediaElement->pause(false);
 }
 
+JNIEXPORT jint JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCacheStatus(JNIEnv *env, jobject obj, jlong ref) {
+    WebKitDriver *drv = *(WebKitDriver **)&ref;
+#if ENABLE(OFFLINE_WEB_APPLICATIONS)
+    DOMApplicationCache *cache = drv->GetMainFrame()->document()->domWindow()->applicationCache();
+    if (cache) {
+        return cache->status();
+    }
+#endif
+    return -1;
+}
+
 JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCache(JNIEnv *env, jobject obj, jlong ref) {
     WebKitDriver *drv = *(WebKitDriver **)&ref;
 
@@ -1578,35 +1589,52 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCache(
     ApplicationCache *cache = ApplicationCacheGroup::cacheForMainRequest(loader->request(), loader);
     if (cache) {
         jobject entry;
-        jclass entryClass = env->FindClass("org/openqa/selenium/CacheEntry");
+        jclass entryClass = env->FindClass("org/openqa/selenium/html5/AppCacheEntry");
+        jclass typeClass = env->FindClass("org/openqa/selenium/html5/AppCacheType");
+        jmethodID typeMethod = env->GetStaticMethodID(typeClass, "valueOf", "(Ljava/lang/String;)Lorg/openqa/selenium/html5/AppCacheType;");
+        jmethodID entryConstructor = env->GetMethodID(entryClass, "<init>", "(Lorg/openqa/selenium/html5/AppCacheType;Ljava/lang/String;Ljava/lang/String;)V");
+        cid = env->GetMethodID(objClass, "add", "(Ljava/lang/Object;)Z");
         for(ApplicationCache::ResourceMap::const_iterator it = cache->begin(); it != cache->end(); ++it) {
-            // Create CacheEntry object
-            cid = env->GetMethodID(entryClass, "<init>", "()V");
-            entry = env->NewObject(entryClass, cid);
-            // Populate created object with cache resource values
-            if (entry) {
-                String str;
-
-                // Set cache entry url
-                str = it->second->url().string();
-                cid = env->GetMethodID(entryClass, "setUrl", "(Ljava/lang/String;)V");
-                env->CallVoidMethod(entry, cid, env->NewString(str.characters(),str.length()));
-
-                // Set cache entry MIME type
-                str = it->second->response().mimeType();
-                cid = env->GetMethodID(entryClass, "setMimeType", "(Ljava/lang/String;)V");
-                env->CallVoidMethod(entry, cid, env->NewString(str.characters(),str.length()));
-
-                // Set cache entry HTTP status code
-                cid = env->GetMethodID(entryClass, "setStatusCode", "(I)V");
-                env->CallVoidMethod(entry, cid, it->second->response().httpStatusCode());
-
-                // Add object to resulting list
-                cid = env->GetMethodID(objClass, "add", "(Ljava/lang/Object;)Z");
-                env->CallBooleanMethod(result, cid, entry);
+            // Map WebKit ApplicationCacheResource type into WebDriver AppCacheType names
+            const char *typeName = 0;
+            switch (it->second->type()) {
+                case ApplicationCacheResource::Master:
+                    typeName = "MASTER";
+                    break;
+                case ApplicationCacheResource::Manifest:
+                    typeName = "MANIFEST";
+                    break;
+                case ApplicationCacheResource::Explicit:
+                    typeName = "EXPLICIT";
+                    break;
+                case ApplicationCacheResource::Fallback:
+                    typeName = "FALLBACK";
+                    break;
             }
+        
+            // If resource type can not be mapped to AppCacheType enum, just skip it
+            if (!typeName)
+                continue;
+
+            // Get AppCacheType object, it will be passed to AppCacheEntry constructor
+            jobject cacheType = env->CallStaticObjectMethod(typeClass, typeMethod, 
+                    env->NewStringUTF(typeName));
+
+            // Create AppCacheEntry object ...
+            String url = it->second->url().string();
+            String mimeType = it->second->response().mimeType();
+
+            entry = env->NewObject(entryClass, entryConstructor, 
+                    cacheType,
+                    env->NewString(url.characters(),url.length()),
+                    env->NewString(mimeType.characters(),mimeType.length())
+            );
+
+            // ... and put it to resulting list
+            env->CallBooleanMethod(result, cid, entry);
         }
         env->DeleteLocalRef(entryClass);
+        env->DeleteLocalRef(typeClass);
     }
 #endif
     env->DeleteLocalRef(objClass);

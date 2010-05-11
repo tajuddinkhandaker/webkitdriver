@@ -511,6 +511,14 @@ public class WebKitJNI {
   public native void mediaPlay(long ref, boolean doPlay);
 
   /**
+   * Get application cache status
+   *
+   * @param ref - reference to controller
+   * @return WebKit status of application cache
+   */
+  public native int getAppCacheStatus(long ref);
+
+  /**
    * Get application cache entries
    *
    * @param ref - reference to controller
