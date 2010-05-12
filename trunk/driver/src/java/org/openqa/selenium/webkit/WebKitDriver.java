@@ -60,6 +60,10 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebDriver.Timeouts;
+import org.openqa.selenium.html5.AppCacheEntry;
+import org.openqa.selenium.html5.DatabaseStorage;
+import org.openqa.selenium.html5.Location;
+import org.openqa.selenium.html5.ResultSet;
 import org.openqa.selenium.internal.FindsById;
 import org.openqa.selenium.internal.FindsByLinkText;
 import org.openqa.selenium.internal.FindsByName;
@@ -311,8 +315,27 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public ResultSet executeSQL(String db, String query, Object... args) 
-  {
-    return null;
+  {    
+    // Due to interface limitations we have to parse db string since it contains
+    // all information to open DB
+    String []temp = db.split("^\\s*'");
+    if (temp.length == 2) temp[0] = temp[1];
+    String[] dbparams = temp[0].split("(\\s*'*\\s*,\\s*'*)|(\\s*'\\s*$)");
+
+    if (dbparams.length != 4)
+      throw new WebDriverException("Wrong number of arguments for DB opening");
+    // since we are getting DB size as a string and not as a number we have to
+    // parse it ourselves in order to get actual number it's passed to JS engine currently
+    // to do the parsing part
+    Object len = executeScript("return "+dbparams[3]+";");
+    if (!(len instanceof Long)) throw new WebDriverException ("Incorrect DB size");
+    long dbRef = WebKitJNI.getInstance().openDatabase(controller, dbparams[0], dbparams[1], dbparams[2], (Long)len);    
+    Object result = WebKitJNI.getInstance().executeSQL(controller, dbRef, query, args);
+    WebKitJNI.getInstance().closeDatabase(dbRef);
+    if (result instanceof ResultSet) return (ResultSet)result;
+    if (result instanceof WebDriverException) throw (WebDriverException)result;
+
+    throw new WebDriverException("Unknown result type");
   }
 
   public List<AppCacheEntry> getAppCache() 

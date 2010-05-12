@@ -69,6 +69,7 @@
 #include "ContextMenuClientHl.h"
 #include "FrameLoaderClientHl.h"
 #include "ChromeClientHl.h"
+#include "DatabaseTrackerClient.h"
 
 #include <wtf/CurrentTime.h>
 #include <wtf/MainThread.h>
@@ -166,6 +167,9 @@ WebKitDriver::WebKitDriver(WebCore::String userAgent) :
 #if ENABLE(CLIENT_BASED_GEOLOCATION)
     priv->geoClient = new WebCore::GeolocationControllerClientHl();
 #endif
+#if ENABLE(DATABASE)
+    priv->dbClient = new WebCore::DatabaseTrackerClientHl(this);
+#endif
     priv->page = new WebCore::Page(
         new WebCore::ChromeClientHl(this),
         new WebCore::ContextMenuClientHl(),
@@ -202,6 +206,7 @@ WebKitDriver::WebKitDriver(WebCore::String userAgent) :
     settings->setJavaScriptCanOpenWindowsAutomatically(true);
     settings->setAllowScriptsToCloseWindows(true);
  
+    WebCore::DatabaseTracker::tracker().setClient(priv->dbClient);
     // Initialize path to database and appcache unless already initialized
     if (WebCore::DatabaseTracker::tracker().databaseDirectoryPath().isNull()) {
         // FIXME: unix-specific code below
@@ -258,6 +263,10 @@ bool WebKitDriver::setDatabaseEnabled(bool enable)
 
 WebCore::GeolocationControllerClientHl* WebKitDriver::GetGeolocationClient() {
     return priv->geoClient;
+}
+
+WebCore::DatabaseTrackerClientHl* WebKitDriver::GetSQLClient() {
+    return priv->dbClient;
 }
 
 WebCore::Frame* WebKitDriver::GetFrame() {
@@ -385,3 +394,10 @@ void WebKitDriver::processAllEvents() {
     };
 }
 
+void WebKitDriver::SetBusyState (bool isBusy, int who) {
+    m_state = (m_state & !who) | (isBusy ? who : 0);
+}
+
+bool WebKitDriver::IsBusy(int who) { 
+    return m_state & who; 
+}

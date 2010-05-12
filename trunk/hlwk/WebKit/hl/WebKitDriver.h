@@ -38,6 +38,7 @@ namespace WebCore {
     class EditorClientHl;
     class Frame;
     class GeolocationControllerClientHl;
+    class DatabaseTrackerClientHl;
 }
 
 class WebKitDriver
@@ -93,9 +94,19 @@ public:
     void SetFrame(WebCore::Frame*);
     WebCore::Frame* GetMainFrame();
     WebCore::GeolocationControllerClientHl* GetGeolocationClient();
+    WebCore::DatabaseTrackerClientHl* GetSQLClient();
     bool setDatabaseEnabled(bool);
 
     bool ShouldClose() const;
+
+    // HTML 5 asynchronous work support
+    static const int GEOLOCATION = 1; 
+    static const int DATABASE = 2;
+    static const int APPCACHE = 4;
+    static const int ALL = -1; 
+
+    bool IsBusy(int who = ALL);
+    void SetBusyState (bool isBusy, int who = ALL);
 
 private:
     bool waitFrameLoaded();
@@ -107,6 +118,7 @@ private:
 
     WebKitDriverPrivate *priv;
     int m_loading;  // Number of loading frames
+    int m_state; // greater then 0 if some asynchronous tasks is working
     static int instances; // Number of WebKitDriver instances;
 };
 
