@@ -527,6 +527,36 @@ public class WebKitJNI {
   public native Object getAppCache(long ref);
 
   /**
+   * Execute SQL script
+   *
+   * @param ref - reference to controller
+   * @param dbref - reference to database
+   * @param query - sql query to execute
+   * @param arguments - array of arguments for sql query, they should match ? in it
+   * @return result of query execution
+   */
+  public native Object executeSQL(long ref, long dbref, String query, Object[] arguments);
+
+  /**
+   * Open database
+   *
+   * @param ref - reference to controller
+   * @param name - Database name
+   * @param version - Database version, this is binding parameter if DB version does not match error will occure
+   * @param diaplayName - human readable name for Database
+   * @param ref - reference to controller
+   * @return reference to opened database
+   */
+  public native long openDatabase(long ref, String name, String version, String displayName, long size);
+
+  /**
+   * Close database
+   *
+   * @param ref - reference to controller
+   */
+  public native void closeDatabase(long ref);
+
+  /**
    * Get number of entries in DOM storage
    *
    * @param ref - reference to controller

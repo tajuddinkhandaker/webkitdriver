@@ -82,6 +82,12 @@
 #include "Chrome.h"
 #include "ChromeClientHl.h"
 
+#include "Database.h"
+#include "DatabaseHl.h"
+#include "DatabaseTask.h"
+#include "DatabaseThread.h"
+#include "DatabaseTrackerClientHl.h"
+#include "SQLTransactionCoordinator.h"
 #include "GeolocationControllerClientHl.h"
 #include "GeolocationPosition.h"
 #include "GeolocationController.h"
@@ -229,6 +235,16 @@ static bool isVisible(Node* node, bool zeroSizeInvisible = true, bool start = tr
     return isVisible(node->parentNode(), zeroSizeInvisible, started, visible);
 }
 
+jobject createWebDriverException(JNIEnv* env, const String& errorMessage) {
+    jclass objClass = env->FindClass("org/openqa/selenium/WebDriverException");
+    jmethodID cid = env->GetMethodID(objClass, "<init>", "(Ljava/lang/String;)V");
+    jstring message = env->NewString(errorMessage.characters(), errorMessage.length());
+    jobject result = env->NewObject(objClass, cid, message);
+    env->DeleteLocalRef(objClass);
+    return result;
+    return 0;
+}
+
 JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_create(JNIEnv *env, jobject obj, jstring userAgent)
 {
     jlong jresult = 0;
@@ -303,20 +319,6 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getUrl(JNIEn
     return env->NewString(str.characters(),str.length());
 }
 
-jobject createJStringObject (JNIEnv *env, int len, const jchar* str) {
-    jcharArray charArray;
-    jobject result = NULL;
-    jclass objClass = env->FindClass("java/lang/String");
-    jmethodID cid = env->GetMethodID(objClass, "<init>", "([C)V");
-    charArray = env->NewCharArray(len);
-    env->SetCharArrayRegion(charArray, 0, len, str);
-    result = env->NewObject(objClass, cid, charArray);
-
-    env->DeleteLocalRef(charArray);
-    env->DeleteLocalRef(objClass);
-    return result;
-}
-
 typedef WTF::HashSet<JSC::JSObject*> ObjectSet;
 
 jobject getObjectFromValue (JNIEnv *env, jobject driver, ScriptState *state, JSC::JSValue value, ObjectSet set, JSC::JSObject **cycle)  {
@@ -353,7 +355,7 @@ jobject getObjectFromValue (JNIEnv *env, jobject driver, ScriptState *state, JSC
         env->DeleteLocalRef(objClass);
     } else if (value.isString()) {
         WebCore::String strResult = value.getString(state);
-        result = createJStringObject(env, strResult.length(), strResult.characters());
+        result = env->NewString(strResult.characters(), strResult.length());
     } else if (isJSByteArray(&state->globalData(), value)) {
         WTF::ByteArray* arr = asByteArray(value)->storage();
         jbyteArray byteArray = env->NewByteArray(arr->length());
@@ -428,7 +430,7 @@ jobject getObjectFromValue (JNIEnv *env, jobject driver, ScriptState *state, JSC
                     if (!mapObject) {
                         break;
                     }
-                    jobject key = createJStringObject(env, (it).size(), (it).data());
+                    jobject key = env->NewString((it).data(), (it).size());
                     env->CallObjectMethod(result, adding, key, mapObject);
                 }
             }
@@ -561,7 +563,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(J
 #endif
     ObjectSet set;
     JSC::JSObject* cycle = NULL;
-    return getObjectFromValue(env, obj, state, jsValue /*value.jsValue()*/, set, &cycle);
+    return getObjectFromValue(env, obj, state, jsValue, set, &cycle);
 }
 
 
@@ -1542,6 +1544,148 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setOnline(JNIE
     networkStateNotifier().networkStateChange(online);
     return 0;
 }
+
+#if ENABLE(DATABASE)
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_openDatabase(JNIEnv *env, jobject obj, jlong ref, 
+        jstring name, jstring version, jstring displayName, jlong size) {
+    WebKitDriver* drv = (WebKitDriver*)ref;
+
+    ExceptionCode code;
+    PassRefPtr<Database> database = Database::openDatabase(drv->GetFrame()->document(), 
+            to_string(env, name), to_string(env, version), to_string(env, displayName), size, code);
+    Headless::processTimer();
+    database->ref();
+    return (long)database.get();
+}
+
+JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_closeDatabase(JNIEnv *env, jobject obj, jlong ref) {
+    Database* database = (Database*)ref;
+    if (!database) {
+        database->close();
+        Headless::processTimer();
+        database->deref();
+    }
+}
+
+bool parseSQLArgument(JNIEnv *env, jobject obj, SQLValue& result) {
+    jclass jstrClass = env->FindClass("java/lang/String");
+    jclass jintClass = env->FindClass("java/lang/Integer");
+    jclass jlongClass = env->FindClass("java/lang/Long");
+    jclass jdoubleClass = env->FindClass("java/lang/Double");
+    
+    jmethodID iid = env->GetMethodID(jintClass, "longValue", "()J");
+    jmethodID lid = env->GetMethodID(jlongClass, "longValue", "()J");
+    jmethodID did = env->GetMethodID(jdoubleClass, "doubleValue", "()D");
+
+    bool parsingOK = true;
+    if (env->IsInstanceOf(obj, jstrClass)) {
+        result = SQLValue(to_string(env, *(jstring*)&obj));
+    } else if (env->IsInstanceOf(obj, jintClass)) {
+        result = SQLValue(env->CallIntMethod(obj, iid));
+    } else if (env->IsInstanceOf(obj, jlongClass)) {
+        result = SQLValue(env->CallLongMethod(obj, lid));
+    } else if (env->IsInstanceOf(obj, jdoubleClass)) {
+        result = SQLValue(env->CallDoubleMethod(obj, did));
+    } else parsingOK = false;
+
+    env->DeleteLocalRef(jstrClass);
+    env->DeleteLocalRef(jintClass);
+    env->DeleteLocalRef(jlongClass);
+    env->DeleteLocalRef(jdoubleClass);
+    return parsingOK;
+}
+
+jobject getObjectFromSQLValue(JNIEnv *env, const SQLValue &value) {
+    jclass jdoubleClass = 0;
+    jmethodID cid = 0;
+    jobject result = 0;
+    switch (value.type()) {
+        case SQLValue::NumberValue:
+            jdoubleClass = env->FindClass("java/lang/Double");
+            cid = env->GetMethodID(jdoubleClass, "<init>", "(D)V");
+            result = env->NewObject(jdoubleClass, cid, value.number());
+            env->DeleteLocalRef(jdoubleClass);
+            return result;
+        case SQLValue::StringValue:
+            return env->NewString(value.string().characters(), value.string().length());
+        case SQLValue::NullValue:
+        default:
+            return 0;
+    }
+}
+
+jobject getObjectFromSQLSetRowList(JNIEnv *env, SQLResultSetRowList* set) {
+    jclass listClass = env->FindClass("java/util/ArrayList");
+    jclass rowsClass = env->FindClass("org/openqa/selenium/html5/ResultSetRows");
+    jmethodID lcid = env->GetMethodID(listClass, "<init>", "()V");
+    jmethodID rcid = env->GetMethodID(rowsClass, "<init>", "(Ljava/util/List;)V");
+    jmethodID adding = env->GetMethodID(listClass, "add", "(Ljava/lang/Object;)Z");
+    jobject result = env->NewObject(listClass, lcid);
+    jclass hashClass = env->FindClass("java/util/HashMap");
+    jmethodID hcid = env->GetMethodID(hashClass, "<init>", "()V");
+    jmethodID putting = env->GetMethodID(hashClass, "put",
+            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+    if (result) {
+        for (int i = 0; i < set->length(); i++) {
+            jobject hash = env->NewObject(hashClass, hcid);
+            for (int j = 0; j < set->columnNames().size(); j++) {
+                jstring key = env->NewString(set->columnNames()[j].characters(), set->columnNames()[j].length());
+                jobject mapObject = getObjectFromSQLValue(env, set->values()[i*set->columnNames().size() + j]);
+                env->CallObjectMethod(hash, putting, key, mapObject);
+            }
+            env->CallBooleanMethod(result, adding, hash);
+        }
+    }
+    jobject resultRows = env->NewObject(rowsClass, rcid, result);
+    env->DeleteLocalRef(listClass);
+    env->DeleteLocalRef(hashClass);
+    env->DeleteLocalRef(rowsClass);
+    return resultRows;
+} 
+
+JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_executeSQL(JNIEnv *env, jobject obj, jlong ref, jlong dbref, jstring query, jobjectArray argv) {
+    WebKitDriver* drv = (WebKitDriver*)ref;
+    Database* database = (Database*)dbref;
+    
+    Vector<SQLValue> argVector;
+    for (int i = 0; i < env->GetArrayLength(argv); i++) {
+        jobject argument = env->GetObjectArrayElement(argv, i);
+        SQLValue value;
+        if (parseSQLArgument(env, env->GetObjectArrayElement(argv, i), value))
+            argVector.append(value);
+        else {
+            return createWebDriverException(env, "Argument parse error");
+        }
+    }
+
+    DatabaseTrackerClientHl* client = drv->GetSQLClient();
+    PassRefPtr<SQLTransactionCallbackHl> transactionCallback = adoptRef(new SQLTransactionCallbackHl(client, to_string(env, query), argVector));
+    PassRefPtr<SQLTransactionErrorCallbackHl> transactionErrorCallback = adoptRef(new SQLTransactionErrorCallbackHl(client));
+    PassRefPtr<SQLSuccessCallback> successCallback = adoptRef(new SQLSuccessCallback(client));
+
+    drv->SetBusyState(true, WebKitDriver::DATABASE);
+    database->transaction(transactionCallback, transactionErrorCallback, successCallback, false);
+
+    while (drv->IsBusy(WebKitDriver::DATABASE)) {
+        Headless::processTimer();
+    }
+
+    if (drv->GetSQLClient()->isResultOK()) {
+        // we are getting Result set data from interface here. It's basically an
+        // atomic operation but since we work in a single thread here it's OK 
+        jobject rowList =  getObjectFromSQLSetRowList(env, drv->GetSQLClient()->getResult());
+        int rowsAffected = drv->GetSQLClient()->rowsAffected();
+        int insertID = drv->GetSQLClient()->insertID();
+        jclass objClass = env->FindClass("org/openqa/selenium/html5/ResultSet");
+        jmethodID cid = env->GetMethodID(objClass, "<init>", "(IILorg/openqa/selenium/html5/ResultSetRows;)V");
+        jobject result = env->NewObject(objClass, cid, insertID, rowsAffected, rowList);
+        env->DeleteLocalRef(objClass);
+        return result;
+    }
+    return createWebDriverException(env, drv->GetSQLClient()->getError()->message());
+}
+#endif //ENABLE(DATABASE)
 
 JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_canPlayType
     (JNIEnv *env, jobject obj, jlong ref, jstring contentTypeStr)

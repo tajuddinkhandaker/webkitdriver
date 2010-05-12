@@ -104,6 +104,9 @@ extern "C" {
         (JNIEnv *env, jobject obj, jlong ref, jboolean doPlay);
     JNIEXPORT jint JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCacheStatus(JNIEnv *env, jobject obj, jlong ref);
     JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCache(JNIEnv *env, jobject obj, jlong ref);
+    JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_executeSQL(JNIEnv *env, jobject obj, jlong ref, jlong dbref, jstring query, jobjectArray argv);
+    JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_openDatabase(JNIEnv *env, jobject obj, jlong ref, jstring name, jstring version, jstring displayName, jlong size);
+    JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_closeDatabase(JNIEnv *env, jobject obj, jlong ref);
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageLength(JNIEnv *env, jobject obj, jlong ref, jboolean session);
     JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageClear(JNIEnv *env, jobject obj, jlong ref, jboolean session);
     JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageKey(JNIEnv *env, jobject obj, jlong ref, jboolean session, jlong idx);
