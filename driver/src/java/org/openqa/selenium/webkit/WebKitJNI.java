@@ -419,6 +419,22 @@ public class WebKitJNI {
   }
 
   /**
+   * Get enable/disable JS status
+   *
+   * @param ref - reference to controller
+   * @return JS enabled status
+   */
+  public native boolean isJavascriptEnabled(long ref);
+
+  /**
+   * Enable/disable JS
+   *
+   * @param ref - reference to controller
+   * @param enabled - enable/disable script
+   */
+  public native void setJavascriptEnabled(long ref, boolean enabled);
+
+  /**
    * Evaluating Java Script
    *
    * @param ref - Reference to WebDriver

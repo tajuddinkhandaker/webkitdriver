@@ -38,6 +38,7 @@
 #include "NodeList.h"
 #include "OptionElement.h"
 #include "PlatformKeyboardEvent.h"
+#include "Settings.h"
 #include "StaticNodeList.h"
 #include "TextIterator.h"
 #include "Page.h"
@@ -319,8 +320,20 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getUrl(JNIEn
     return env->NewString(str.characters(),str.length());
 }
 
+JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_isJavascriptEnabled(JNIEnv *env, jobject obj, jlong ref) {
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    return drv->GetFrame()->page()->settings()->isJavaScriptEnabled();
+}
+
+    JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setJavascriptEnabled(JNIEnv *env, jobject obj, jlong ref, jboolean enable) {
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+    drv->GetFrame()->page()->settings()->setJavaScriptEnabled(enable);
+}
+
 typedef WTF::HashSet<JSC::JSObject*> ObjectSet;
 
+// creting Java Object from JSValue, Nodes are converted to WebElements
+// this function is called recursively in case of coomplicated object structures
 jobject getObjectFromValue (JNIEnv *env, jobject driver, ScriptState *state, JSC::JSValue value, ObjectSet set, JSC::JSObject **cycle)  {
     jclass objClass;
     jmethodID cid;
@@ -443,6 +456,7 @@ jobject getObjectFromValue (JNIEnv *env, jobject driver, ScriptState *state, JSC
     return result;
 }
 
+// process raised JS exception, and return WebDriver exception after JS exec
 jobject processException(JNIEnv* env, JSC::ExecState* exec, JSC::JSValue exception, bool report = false) {
     if (!exec->hadException()) return NULL;
 
@@ -461,6 +475,7 @@ jobject processException(JNIEnv* env, JSC::ExecState* exec, JSC::JSValue excepti
 }
 
 
+// converting java objects to relevant JSValue's
 JSC::JSValue parseArgument(JNIEnv* env, WebKitDriver* drv, jobject argument) {
     using namespace JSC;
     JSValue result;
@@ -531,6 +546,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(J
     int lineNumber = 3;
 
     Headless::processExpiredTimers();
+    // creating Argument buffer to pass it to function creation function farther
     ScriptState *state = proxy->globalObject(mainThreadNormalWorld())->globalExec();
     MarkedArgumentBuffer args;
     MarkedArgumentBuffer funcArgs;
@@ -541,6 +557,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(J
     }
     funcArgs.append(parseArgument(env, drv, env->GetObjectArrayElement(argv, i)));
 
+    // creating 'f' function it's wrapper around our Java script code
     WebCore::String functionName("f");
     JSC::JSObject* jsFunctionObj = JSC::constructFunction(
             state, funcArgs, Identifier(state, functionName), UString(""), lineNumber);
@@ -550,11 +567,14 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(J
     }
     JSFunction *jsFunction = static_cast<JSFunction*>(jsFunctionObj);
 
+    // calling f function, we are getting result of its execution as well
+    // as error state (exception)
     JSC::JSValue jsValue = jsFunction->call(state, state->globalThisValue(), args);
     if (state->hadException() || !jsValue) {
         return processException(env, state, state->exception());
     }
 
+    // waiting for unfinished tasks (including geolocation)
     waitFrameLoaded(drv->GetFrame());
 #if ENABLE(CLIENT_BASED_GEOLOCATION)
     while (drv->GetGeolocationClient()->isBusy() && Headless::processTimer())
@@ -562,6 +582,8 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(J
         ;
 #endif
     ObjectSet set;
+    // cycle is used for cycle detection, currently it doesn't do much since
+    // we don't have such structures, but we could meet them in future
     JSC::JSObject* cycle = NULL;
     return getObjectFromValue(env, obj, state, jsValue, set, &cycle);
 }
@@ -612,6 +634,7 @@ bool isBlockLevel(Node* element) {
     return false;
 }
 
+// this fucntion collapses multiply whitespaces/nbrb/tabs/newlines in to a single whitespace
 WebCore::String collapseWhiteSpace(WebCore::String str) {
     //TODO speed up the function, append arrays
     int len = 0;
@@ -634,6 +657,8 @@ WebCore::String collapseWhiteSpace(WebCore::String str) {
     return buf;
 }
 
+// input - input steam, temporary storage for text from inner elements
+// outptut - stream with the final text after postprocessing
 void getTextFromNode(Node* node, WebCore::String& input, WebCore::String& output) {
     // TODO preformatted text, helper functions
     if (!node || node->hasTagName(HTMLNames::scriptTag))
@@ -642,6 +667,7 @@ void getTextFromNode(Node* node, WebCore::String& input, WebCore::String& output
     if (node->isTextNode() && isVisible(node, false))
         input += node->textContent();
 
+    // block level node is a /n in resulting text
     if (isBlockLevel(node)) {
         output += collapseWhiteSpace(input);
         input = "";
@@ -651,10 +677,13 @@ void getTextFromNode(Node* node, WebCore::String& input, WebCore::String& output
         }
     }
 
-
+    // in order to comply with webdiriver requirements regarding inner text
+    // we have to go through all child nodes and construct the string ourselves
     for (Node* child = node->firstChild(); child; child = child->nextSibling())
         getTextFromNode(child, input, output);
 
+    // block level node is a /n in resulting text
+    // we have to do it before and after child iteration since we may have a broken tag
     if (isBlockLevel(node)) {
         output += collapseWhiteSpace(input);
         input = "";
@@ -1568,6 +1597,8 @@ JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_closeDatabase(J
     }
 }
 
+// parsing SQL arguments to SQLValues, every Number is converted to double
+// since JS has only Number/String distinction
 bool parseSQLArgument(JNIEnv *env, jobject obj, SQLValue& result) {
     jclass jstrClass = env->FindClass("java/lang/String");
     jclass jintClass = env->FindClass("java/lang/Integer");
@@ -1615,6 +1646,8 @@ jobject getObjectFromSQLValue(JNIEnv *env, const SQLValue &value) {
     }
 }
 
+// creating Java object from set of SQLValues, we have only 2 data tpyes Numeric and String
+// This is limitation inherited from JS
 jobject getObjectFromSQLSetRowList(JNIEnv *env, SQLResultSetRowList* set) {
     jclass listClass = env->FindClass("java/util/ArrayList");
     jclass rowsClass = env->FindClass("org/openqa/selenium/html5/ResultSetRows");
@@ -1659,6 +1692,8 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_executeSQL(J
         }
     }
 
+    // Java Script transaction is created and passed to a database handler class
+    // actuall SQL statement code is passed lately during callback on transaction initiation
     DatabaseTrackerClientHl* client = drv->GetSQLClient();
     PassRefPtr<SQLTransactionCallbackHl> transactionCallback = adoptRef(new SQLTransactionCallbackHl(client, to_string(env, query), argVector));
     PassRefPtr<SQLTransactionErrorCallbackHl> transactionErrorCallback = adoptRef(new SQLTransactionErrorCallbackHl(client));
@@ -1667,6 +1702,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_executeSQL(J
     drv->SetBusyState(true, WebKitDriver::DATABASE);
     database->transaction(transactionCallback, transactionErrorCallback, successCallback, false);
 
+    // waiting for success or error callback
     while (drv->IsBusy(WebKitDriver::DATABASE)) {
         Headless::processTimer();
     }
@@ -1674,6 +1710,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_executeSQL(J
     if (drv->GetSQLClient()->isResultOK()) {
         // we are getting Result set data from interface here. It's basically an
         // atomic operation but since we work in a single thread here it's OK 
+        WTFLog(&WebCore::LogStorageAPI, "Creating Result Set");
         jobject rowList =  getObjectFromSQLSetRowList(env, drv->GetSQLClient()->getResult());
         int rowsAffected = drv->GetSQLClient()->rowsAffected();
         int insertID = drv->GetSQLClient()->insertID();

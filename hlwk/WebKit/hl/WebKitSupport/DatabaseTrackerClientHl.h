@@ -43,6 +43,7 @@ namespace WebCore {
 class SecurityOrigin;
 class String;
 
+// We are extendign this class to provide service for asynchronous SQL queries processing
 class DatabaseTrackerClientHl : public DatabaseTrackerClient {
 public:
     DatabaseTrackerClientHl(WebKitDriver* driver);

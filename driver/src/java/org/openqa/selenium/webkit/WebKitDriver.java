@@ -308,14 +308,14 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
 
   public boolean isJavascriptEnabled() {
-    return true;
+    return WebKitJNI.getInstance().isJavascriptEnabled(controller);
   }
 
   public void setJavascriptEnabled(boolean enableJavascript) {
+    WebKitJNI.getInstance().setJavascriptEnabled(controller, enableJavascript);
   }
 
-  public ResultSet executeSQL(String db, String query, Object... args) 
-  {    
+  public ResultSet executeSQL(String db, String query, Object... args) {    
     // Due to interface limitations we have to parse db string since it contains
     // all information to open DB
     String []temp = db.split("^\\s*'");
