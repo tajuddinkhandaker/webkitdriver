@@ -100,12 +100,15 @@ public:
     bool ShouldClose() const;
 
     // HTML 5 asynchronous work support
+    // generic state to provide information on who is doing asynchronous work
+    // bitmask allows for several states at a time 
     static const int GEOLOCATION = 1; 
     static const int DATABASE = 2;
     static const int APPCACHE = 4;
     static const int ALL = -1; 
 
     bool IsBusy(int who = ALL);
+    // By default will be returned busy state for whole system
     void SetBusyState (bool isBusy, int who = ALL);
 
 private:

@@ -49,6 +49,7 @@ class SQLResultSet;
 class SQLTransaction;
 class DatabaseTrackerClientHl;
 
+// Success callback handleEvent is called when transaction is successfulyy
 class SQLSuccessCallback : public VoidCallback {
 public:
     SQLSuccessCallback(DatabaseTrackerClientHl* client) : m_client(client) { }
@@ -58,6 +59,8 @@ private:
     DatabaseTrackerClientHl* m_client;
 };
 
+// SQLTransaction callback handleEvent is called when transaction has started
+// we can add SQLStatements now
 class SQLTransactionCallbackHl : public SQLTransactionCallback {
 public:
     SQLTransactionCallbackHl(DatabaseTrackerClientHl* client, const String&, const Vector<SQLValue>&);
@@ -69,6 +72,7 @@ private:
     DatabaseTrackerClientHl* m_client;
 };
 
+// our error handling goes here, since we are operating on a transaction level
 class SQLTransactionErrorCallbackHl : public SQLTransactionErrorCallback {
 public:
     SQLTransactionErrorCallbackHl(DatabaseTrackerClientHl* client) : m_client(client) { }
@@ -78,6 +82,7 @@ private:
     DatabaseTrackerClientHl* m_client;
 };
 
+// Statement callback handleEvent is called when Statement has been initiated
 class SQLStatementCallbackHl : public SQLStatementCallback {
 public:
     SQLStatementCallbackHl(DatabaseTrackerClientHl* client) : m_client(client) { }

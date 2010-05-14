@@ -32,6 +32,7 @@
 #include <wtf/Threading.h>
 #include "DatabaseHl.h"
 #include "DatabaseTrackerClientHl.h"
+#include "Logging.h"
 
 #if ENABLE(DATABASE)
 
@@ -41,6 +42,7 @@ class SQLError;
 class SQLResultSet;
 
 void SQLSuccessCallback::handleEvent() { 
+    WTFLog(&WebCore::LogStorageAPI, "Success callback");
     m_client->successCallback(); 
 }
 
@@ -56,10 +58,12 @@ void SQLTransactionCallbackHl::handleEvent(SQLTransaction* transaction, bool& ra
     ExceptionCode exception;
     m_client->setResult(0);
 
+    // creating and executing SQLStatement(s)
     transaction->executeSQL(m_statement, m_arguments, statementCallback, statementErrorCallback, exception);
 }
 
 void SQLTransactionErrorCallbackHl::handleEvent(SQLError* error) { 
+    WTFLog(&WebCore::LogStorageAPI, "Error callback");
     m_client->setError(error);
     m_client->successCallback(); 
 }
