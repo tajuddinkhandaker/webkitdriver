@@ -9,6 +9,7 @@ extern "C" {
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_get(JNIEnv *env, jobject obj, jlong ref, jstring url);
     JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setDatabaseEnabled(JNIEnv *env, jobject obj, jlong ref, jboolean enable);
     JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getTitle(JNIEnv *env, jobject obj, jlong ref);
+    JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getDOMDump(JNIEnv *env, jobject obj, jlong ref);
     JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getPageSource(JNIEnv *env, jobject obj, jlong ref);
     JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getUrl(JNIEnv *env, jobject obj, jlong ref);
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getDocument
