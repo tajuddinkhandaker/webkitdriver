@@ -299,6 +299,17 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getTitle(JNI
     return env->NewString(str.characters(),str.length());
 }
 
+
+JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getDOMDump(JNIEnv *env, jobject obj, jlong ref){
+    WebKitDriver *drv = *(WebKitDriver**)&ref;
+
+    Element *element = drv->GetFrame()->document()->documentElement();
+    WebCore::String str;
+    if (element && element->isHTMLElement())
+        str = ((HTMLElement*)element)->innerHTML();
+    return env->NewString(str.characters(),str.length());
+}
+
 JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getPageSource(JNIEnv *env, jobject obj, jlong ref){
     WebKitDriver *drv = *(WebKitDriver**)&ref;
 

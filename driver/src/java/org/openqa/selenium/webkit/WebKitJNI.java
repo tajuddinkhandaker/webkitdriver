@@ -242,6 +242,14 @@ public class WebKitJNI {
   public native String getTitle(long ref);
 
   /**
+   * Get DOM object structure (in HTML)
+   *
+   * @param ref - reference to WebKitDriver
+   * @return dom tree
+   */
+  public native String getDOMDump(long ref);
+
+  /**
    * Get page source
    *
    * @param ref - reference to WebKitDriver

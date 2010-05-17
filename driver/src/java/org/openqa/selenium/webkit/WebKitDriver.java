@@ -53,9 +53,11 @@ import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.NoSuchFrameException;
 import org.openqa.selenium.NoSuchWindowException;
+import org.openqa.selenium.OutputType;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.Speed;
+import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.WebDriverException;
@@ -64,6 +66,7 @@ import org.openqa.selenium.html5.AppCacheEntry;
 import org.openqa.selenium.html5.DatabaseStorage;
 import org.openqa.selenium.html5.Location;
 import org.openqa.selenium.html5.ResultSet;
+import org.openqa.selenium.internal.Base64Encoder;
 import org.openqa.selenium.internal.FindsById;
 import org.openqa.selenium.internal.FindsByLinkText;
 import org.openqa.selenium.internal.FindsByName;
@@ -95,7 +98,7 @@ import java.io.IOException;
 public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecutor,
         FindsById, FindsByLinkText, FindsByXPath, FindsByName, FindsByTagName,
         BrowserConnection, ApplicationCache, DatabaseStorage, LocationContext,
-        HTML5StorageSupport {
+        HTML5StorageSupport, TakesScreenshot {
   private long default_controller = 0;
   private long controller = 0;
   private Speed speed = Speed.FAST;
@@ -822,5 +825,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
         Thread.sleep(ms);
       } catch (InterruptedException ignored) {
       }
+  }
+
+  public <X> X getScreenshotAs(OutputType<X> target) {
+      String dump = WebKitJNI.getInstance().getDOMDump(controller);
+      String base64str = new Base64Encoder().encode(dump.getBytes());
+      return target.convertFromBase64Png(base64str);
   }
 }
