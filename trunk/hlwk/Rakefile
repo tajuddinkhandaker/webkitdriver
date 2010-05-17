@@ -1,4 +1,5 @@
 require 'rake'
+require 'rake/loaders/makefile'
 require 'WebKitTools/hl/cc_library'
 
 install_dir = 'WebKitBuild/Release'
@@ -8,7 +9,7 @@ omitted_platforms = [
     'Chromium', 'ChromiumLinux', 'ChromiumMac', 'ChromiumWin', 'ChromiumSkia',
     'CF', 'Symbian']
 
-omitted_platform_patterns = omitted_platforms.map do |x| 
+omitted_platform_patterns = omitted_platforms.map do |x|
   [ "*#{x}.cpp", "*/#{x.downcase}/**.cpp"]
 end.flatten!
 
@@ -75,8 +76,32 @@ task :icu do
   LDFLAGS['icu'] = `icu-config --ldflags`.split
 end
 
-cc_library :name => 'libjscore.a',
-           :srcs => [ 
+our_tasks = Rake.application.top_level_tasks
+process_derived = ENV["WEBKIT_NOT_PROCESS_DERIVED"].nil?
+
+if process_derived && ((our_tasks & %w{clean clean_derived dist_clean}).empty? || ! (our_tasks & %w{default generate_derived}).empty?)
+
+  directory('JavaScriptCore/DerivedSources/docs')
+  directory('WebCore/DerivedSources')
+
+  task :generate_derived => ['JavaScriptCore/DerivedSources/docs', 'WebCore/DerivedSources'] do
+    derived_defines = common_defines.join(' ')
+    Dir.chdir('JavaScriptCore')
+    src_dir = Dir.pwd
+    sh "make -C DerivedSources -f ../DerivedSources.make JavaScriptCore=#{src_dir} BUILT_PRODUCTS_DIR=#{src_dir} all FEATURE_DEFINES='#{derived_defines}'"
+    Dir.chdir('../WebCore')
+    src_dir = Dir.pwd
+    sh "make -C DerivedSources -f ../DerivedSources.make WebCore=#{src_dir} SOURCE_ROOT=#{src_dir} all FEATURE_DEFINES='#{derived_defines}'"
+    Dir.chdir('..')
+  end
+
+  Rake::Task[:generate_derived].invoke
+end
+
+if (our_tasks & %w{clean clean_derived dist_clean}).empty? || ! (our_tasks & %w{default}).empty?
+
+  cc_library :name => 'libjscore.a',
+             :srcs => [
                'JavaScriptCore/API/*.cpp',
                'JavaScriptCore/bytecode/*.cpp',
                'JavaScriptCore/bytecompiler/*.cpp',
@@ -109,7 +134,7 @@ cc_library :name => 'libjscore.a',
            :includes => js_includes,
            :install => install_dir
 
-cc_library :name => 'jsc',
+  cc_library :name => 'jsc',
            :deps => [ 'libjscore.a' ],
            :srcs => [ 'JavaScriptCore/jsc.cpp' ],
            :libs => ['icu'],
@@ -119,8 +144,8 @@ cc_library :name => 'jsc',
            :ldflags => [ '-lpthread' ],
            :install => install_dir
 
-cc_library :name => 'libhlwk.so',
-           :srcs => [ 
+  cc_library :name => 'libhlwk.so',
+           :srcs => [
                'WebCore/accessibility/*.cpp',
                'WebCore/bindings/*.cpp',
                'WebCore/bindings/js/*.cpp',
@@ -272,17 +297,6 @@ cc_library :name => 'libhlwk.so',
              'WebKit/hl'
            ] + js_includes + jni_includes,
            :install => install_dir
-
-task :generate_derived do
-    derived_defines = common_defines.join(' ')
-    Dir.mkdir('JavaScriptCore/DerivedSources')
-    Dir.chdir('JavaScriptCore/DerivedSources')
-    sh "make -f ../DerivedSources.make JavaScriptCore=.. BUILD_PRODUCT_DIR=.. all FEATURE_DEFINES='#{derived_defines}'"
-    Dir.chdir('../..')
-    Dir.mkdir('WebCore/DerivedSources')
-    Dir.chdir('WebCore/DerivedSources')
-    sh "make -f ../DerivedSources.make WebCore=.. SOURCE_ROOT=.. all FEATURE_DEFINES='#{derived_defines}'"
-    Dir.chdir('../..')
 end
 
 task :clean_derived do
@@ -291,8 +305,9 @@ task :clean_derived do
 end
 
 task :clean do
-    sh "rm #{install_dir}/*" 
+    sh "rm -rf #{install_dir}"
 end
 
-task :default => [ 'jsc', 'libhlwk.so' ]
+task :dist_clean => [:clean, :clean_derived]
 
+task :default => [ 'jsc', 'libhlwk.so' ]
