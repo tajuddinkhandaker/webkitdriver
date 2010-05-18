@@ -45,13 +45,13 @@
 
 namespace WebCore {
 
-int getWxCompositingOperation(CompositeOperator op, bool hasAlpha)
+int getHlCompositingOperation(CompositeOperator op, bool hasAlpha)
 {
     notImplemented();
     return 0;
 }
 
-static int strokeStyleToWxPenStyle(int p)
+static int strokeStyleToHlPenStyle(int p)
 {
     notImplemented();
     return 0;
@@ -347,6 +347,16 @@ void GraphicsContext::setAlpha(float)
 }
 
 void GraphicsContext::addInnerRoundedRectClip(const IntRect& rect, int thickness)
+{
+    notImplemented();
+}
+
+void GraphicsContext::clipPath(WindRule)
+{
+    notImplemented();
+}
+
+void GraphicsContext::setLineDash(const DashArray&, float dashOffset)
 {
     notImplemented();
 }

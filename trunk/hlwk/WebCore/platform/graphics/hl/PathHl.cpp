@@ -30,6 +30,7 @@
 #include "FloatPoint.h"
 #include "FloatRect.h"
 #include "NotImplemented.h"
+#include "PlatformString.h"
 #include "StrokeStyleApplier.h" 
 #include "GraphicsPathHL.h"
 
@@ -37,7 +38,7 @@
 
 namespace WebCore {
 
-int getWxWindRuleForWindRule(WindRule rule)
+int getHlWindRuleForWindRule(WindRule rule)
 {
     return 0;
 }
@@ -154,6 +155,18 @@ bool Path::isEmpty() const
 bool Path::hasCurrentPoint() const
 {
     return !isEmpty();
+}
+
+String Path::debugString() const
+{
+    notImplemented();
+    return String();
+}
+
+bool Path::strokeContains(StrokeStyleApplier*, const FloatPoint&) const
+{
+    notImplemented();
+    return false;
 }
 
 }

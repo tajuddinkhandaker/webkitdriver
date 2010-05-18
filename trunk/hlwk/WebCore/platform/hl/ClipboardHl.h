@@ -23,8 +23,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#ifndef ClipboardWx_h
-#define ClipboardWx_h
+#ifndef ClipboardHl_h
+#define ClipboardHl_h
 
 #include "Clipboard.h"
 
@@ -33,11 +33,11 @@ namespace WebCore {
     class CachedImage;
 
     // State available during IE's events for drag and drop and copy/paste
-    class ClipboardWx : public Clipboard {
+    class ClipboardHl : public Clipboard {
     public:
-        static PassRefPtr<ClipboardWx> create(ClipboardAccessPolicy policy, bool forDragging)
+        static PassRefPtr<ClipboardHl> create(ClipboardAccessPolicy policy, bool forDragging)
         {
-            return adoptRef(new ClipboardWx(policy, forDragging));
+            return adoptRef(new ClipboardHl(policy, forDragging));
         }
 
         void clearData(const String& type);
@@ -65,8 +65,8 @@ namespace WebCore {
         virtual bool hasData();
 
     private:
-        ClipboardWx(ClipboardAccessPolicy, bool forDragging);
+        ClipboardHl(ClipboardAccessPolicy, bool forDragging);
     };
 } 
 
-#endif // ClipboardWx_h
+#endif // ClipboardHl_h

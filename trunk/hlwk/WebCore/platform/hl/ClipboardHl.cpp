@@ -24,7 +24,7 @@
  */
 
 #include "config.h"
-#include "ClipboardWx.h"
+#include "ClipboardHl.h"
 
 #include "FileList.h"
 #include "HashTable.h"
@@ -37,104 +37,104 @@
 
 namespace WebCore {
     
-ClipboardWx::ClipboardWx(ClipboardAccessPolicy policy, bool forDragging) 
+ClipboardHl::ClipboardHl(ClipboardAccessPolicy policy, bool forDragging) 
     : Clipboard(policy, forDragging)
 {
 }
 
-void ClipboardWx::clearData(const String& type)
+void ClipboardHl::clearData(const String& type)
 {
     notImplemented();
 }
 
-void ClipboardWx::clearAllData() 
+void ClipboardHl::clearAllData() 
 {
     Pasteboard::generalPasteboard()->clear();
 }
 
-String ClipboardWx::getData(const String& type, bool& success) const 
+String ClipboardHl::getData(const String& type, bool& success) const 
 {
     notImplemented();
     success = false;
     return ""; 
 }
 
-bool ClipboardWx::setData(const String& type, const String& data) 
+bool ClipboardHl::setData(const String& type, const String& data) 
 {
     notImplemented();
     return false;
 }
 
 // extensions beyond IE's API
-HashSet<String> ClipboardWx::types() const 
+HashSet<String> ClipboardHl::types() const 
 {
     notImplemented();
     HashSet<String> result;
     return result;
 }
 
-PassRefPtr<FileList> ClipboardWx::files() const
+PassRefPtr<FileList> ClipboardHl::files() const
 {
     notImplemented();
     return 0;
 }
 
-IntPoint ClipboardWx::dragLocation() const 
+IntPoint ClipboardHl::dragLocation() const 
 { 
     notImplemented();
     return IntPoint(0,0);
 }
 
-CachedImage* ClipboardWx::dragImage() const 
+CachedImage* ClipboardHl::dragImage() const 
 {
     notImplemented();
     return 0; 
 }
 
-void ClipboardWx::setDragImage(CachedImage*, const IntPoint&) 
+void ClipboardHl::setDragImage(CachedImage*, const IntPoint&) 
 {
     notImplemented();
 }
 
-Node* ClipboardWx::dragImageElement() 
+Node* ClipboardHl::dragImageElement() 
 {
     notImplemented();
     return 0; 
 }
 
-void ClipboardWx::setDragImageElement(Node*, const IntPoint&)
+void ClipboardHl::setDragImageElement(Node*, const IntPoint&)
 {
     notImplemented();
 }
 
-DragImageRef ClipboardWx::createDragImage(IntPoint& dragLoc) const
+DragImageRef ClipboardHl::createDragImage(IntPoint& dragLoc) const
 { 
     notImplemented();
     return 0;
 }
 
-void ClipboardWx::declareAndWriteDragImage(Element*, const KURL&, const String&, Frame*) 
+void ClipboardHl::declareAndWriteDragImage(Element*, const KURL&, const String&, Frame*) 
 {
     notImplemented();
 }
 
-void ClipboardWx::writeURL(const KURL& url, const String& string, Frame* frame) 
+void ClipboardHl::writeURL(const KURL& url, const String& string, Frame* frame) 
 {
     Pasteboard::generalPasteboard()->writeURL(url, string, frame);
 }
 
-void ClipboardWx::writeRange(Range*, Frame*) 
+void ClipboardHl::writeRange(Range*, Frame*) 
 {
     notImplemented();
 }
 
-bool ClipboardWx::hasData() 
+bool ClipboardHl::hasData() 
 {
     notImplemented();
     return false;
 }
 
-void ClipboardWx::writePlainText(const WebCore::String& text)
+void ClipboardHl::writePlainText(const WebCore::String& text)
 {
     Pasteboard::generalPasteboard()->writePlainText(text);
 }

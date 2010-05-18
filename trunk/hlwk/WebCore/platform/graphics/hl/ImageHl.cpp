@@ -39,8 +39,8 @@
 
 namespace WebCore {
 
-// this is in GraphicsContextWx.cpp
-int getWxCompositingOperation(CompositeOperator op, bool hasAlpha);
+// this is in GraphicsContextHl.cpp
+int getHlCompositingOperation(CompositeOperator op, bool hasAlpha);
 
 bool FrameData::clear(bool clearMetadata)
 {
