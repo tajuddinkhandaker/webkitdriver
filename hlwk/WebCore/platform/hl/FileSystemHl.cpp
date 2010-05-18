@@ -29,6 +29,8 @@
 
 #include "config.h"
 #include "CString.h"
+#include "FileSystem.h"
+#include "NotImplemented.h"
 #include "PlatformString.h"
 
 namespace WebCore {
@@ -39,6 +41,42 @@ namespace WebCore {
 CString fileSystemRepresentation(const String& path)
 {
     return path.utf8();
+}
+
+// These functions are stubs because we dont't use plugins.
+CString openTemporaryFile(const char* prefix, PlatformFileHandle&)
+{
+    notImplemented();
+    return CString();
+}
+
+void closeFile(PlatformFileHandle&)
+{
+    notImplemented();
+}
+
+int writeToFile(PlatformFileHandle, const char* data, int length)
+{
+    notImplemented();
+    return 0;
+}
+
+bool unloadModule(PlatformModule)
+{
+    notImplemented();
+    return false;
+}
+
+Vector<String> listDirectory(const String& path, const String& filter)
+{
+    notImplemented();
+    return Vector<String>();
+}
+
+String homeDirectoryPath()
+{
+    notImplemented();
+    return String();
 }
 
 }

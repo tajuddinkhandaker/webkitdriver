@@ -26,14 +26,14 @@
 #include "config.h"
 #include "Editor.h"
 
-#include "ClipboardWx.h"
+#include "ClipboardHl.h"
 #include "NotImplemented.h"
 
 namespace WebCore {
 
 PassRefPtr<Clipboard> Editor::newGeneralClipboard(ClipboardAccessPolicy policy) 
 { 
-    return ClipboardWx::create(policy, true);
+    return ClipboardHl::create(policy, true);
 }
 
 void Editor::showColorPanel()
