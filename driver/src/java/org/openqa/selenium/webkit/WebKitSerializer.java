@@ -18,6 +18,7 @@ limitations under the License.
 
 package org.openqa.selenium.webkit;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -44,15 +45,20 @@ public class WebKitSerializer {
   public Object invokeMethodFromStream(ByteBuffer stream) throws WebDriverException {
     Object method = deserialize(stream);
     if (!(method instanceof Method)) 
-        throw new WebDriverException("incorrect serialization format");
-    ;
+      throw new WebDriverException("incorrect serialization format");
 
     ArrayList args = new ArrayList();
     for (int i = 0; i < ((Method)method).getParameterTypes().length; i++)
-        args.add(deserialize(stream));
-
-    // method invocation goes here
-    return null;
+      args.add(deserialize(stream));
+    try {
+      Object result =  ((Method)method).invoke(WebKitJNI.getInstance(), args.toArray());
+      if (result instanceof WebDriverException) throw (WebDriverException)result;
+      return result;
+    } catch (IllegalAccessException e) {
+      throw new WebDriverException("Illegal access to  " + ((Method)method).getName());
+    } catch (InvocationTargetException e) {
+      throw new WebDriverException(e.toString());
+    }
   } 
 
   public void serialize(ByteBuffer stream, Object object) {
@@ -84,7 +90,7 @@ public class WebKitSerializer {
       }
     } else if (object instanceof String) {
       stream.put(stringType);
-      stream.putInt(((String)object).length());
+      stream.putInt(((String)object).getBytes().length);
       stream.asCharBuffer().put((String)object);
     } else if (object instanceof Method){
       stream.put(methodType);
@@ -118,8 +124,19 @@ public class WebKitSerializer {
           array.add(stream);
         return array;
       case methodType:
-        // method lookup goes here
-        return null;
+        String name = stream.asCharBuffer().subSequence(stream.position(), stream.position() + size).toString();
+        try {
+        // FIXME at the moment all methods should have different names
+        // otherwise method lookup may fail
+          Class driver = Class.forName("org/openda/selenium/webkit/WebKitJNI"); 
+          Method[] allMethods = driver.getDeclaredMethods();
+          for (Method method : allMethods) {
+            if (name.equals(method.getName())) return method;
+          }
+        } catch (ClassNotFoundException e) {
+          throw new WebDriverException("Unable to found WebKitJNI class");
+        }
+        throw new WebDriverException("Unable to look up method "+name);
       default:
         throw new WebDriverException("Unknown data type during deserialization");
     }
