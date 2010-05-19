@@ -26,15 +26,23 @@ import java.util.ArrayList;
 import org.openqa.selenium.WebDriverException;
 
 public class WebKitSerializer {
-  private static final byte methodType   = 0;
+  private static final byte nullType   = 0;
   private static final byte longType     = 1;
   private static final byte intType      = 2;
   private static final byte doubleType   = 3;
   private static final byte stringType   = 4;
   private static final byte booleanType  = 5;
   private static final byte arrayType    = 6;
+  private static final byte methodType   = 7;
 
-  public ByteBuffer putMethodIntoStream(Method method, Object args[]) throws WebDriverException {
+  /**
+   * Serialize method to stream for remote call
+   *
+   * @param method Method for setialization
+   * @param args Array of argumenths for the method
+   * @return ByteBuffer with serialized method
+   */
+  public static ByteBuffer putMethodIntoStream(Method method, Object args[]) throws WebDriverException {
     ByteBuffer stream = ByteBuffer.allocate(30000);
     serialize(stream, method);
     for (int i = 0; i < method.getParameterTypes().length; i++)
@@ -42,7 +50,13 @@ public class WebKitSerializer {
     return stream;
   }
 
-  public Object invokeMethodFromStream(ByteBuffer stream) throws WebDriverException {
+  /**
+   * Invoke serialized method from a byte stream
+   *
+   * @param stream ByteBuffer with serialized method
+   * @return Object as result of method invocation
+   */
+  public static Object invokeMethodFromStream(ByteBuffer stream) throws WebDriverException {
     Object method = deserialize(stream);
     if (!(method instanceof Method)) 
       throw new WebDriverException("incorrect serialization format");
@@ -61,8 +75,17 @@ public class WebKitSerializer {
     }
   } 
 
-  public void serialize(ByteBuffer stream, Object object) {
-    if (object instanceof Long) {
+  /**
+   * Serialize object to a ByteBuffer
+   *
+   * @param stream ByteBuffer where object will be put
+   * @param object Object to serialize
+   */
+  public static void serialize(ByteBuffer stream, Object object) {
+    if (object == null) {
+      stream.put(nullType);
+      stream.putInt(0);
+    } else if (object instanceof Long) {
       stream.put(longType);
       stream.putInt(-1);
       stream.putLong((Long)object);
@@ -102,10 +125,18 @@ public class WebKitSerializer {
 
   }
 
-  private Object deserialize(ByteBuffer stream) {
+  /**
+   * Deserialize object from Byte stream
+   *
+   * @param stream ByteBuffer with serialized object
+   * @return deserialized object 
+   */
+  public static Object deserialize(ByteBuffer stream) {
     byte type = stream.get();
     int size = stream.getInt();
     switch (type) {
+      case nullType:
+        return null;
       case longType:
         return stream.getLong();
       case intType:
@@ -136,7 +167,7 @@ public class WebKitSerializer {
         } catch (ClassNotFoundException e) {
           throw new WebDriverException("Unable to found WebKitJNI class");
         }
-        throw new WebDriverException("Unable to look up method "+name);
+        throw new WebDriverException("Unable to look up method " + name);
       default:
         throw new WebDriverException("Unknown data type during deserialization");
     }
