@@ -22,18 +22,33 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.Collection;
 
 import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.html5.ResultSet;
+import org.openqa.selenium.html5.ResultSetRows;
+import org.openqa.selenium.html5.Location;
+import org.openqa.selenium.html5.AppCacheEntry;
 
 public class WebKitSerializer {
-  private static final byte nullType   = 0;
-  private static final byte longType     = 1;
-  private static final byte intType      = 2;
-  private static final byte doubleType   = 3;
-  private static final byte stringType   = 4;
-  private static final byte booleanType  = 5;
-  private static final byte arrayType    = 6;
-  private static final byte methodType   = 7;
+  private static final byte nullType          = 0;
+  private static final byte longType          = 1;
+  private static final byte intType           = 2;
+  private static final byte doubleType        = 3;
+  private static final byte stringType        = 4;
+  private static final byte booleanType       = 5;
+  private static final byte arrayType         = 6;
+  private static final byte methodType        = 7;
+  private static final byte mapType           = 8;
+  private static final byte listType          = 9;
+  private static final byte collectionType    = 10;
+  private static final byte resultSetType     = 11;
+  private static final byte resultSetRowsType = 12;
+  private static final byte locationType      = 13;
+  private static final byte appCacheEntryType = 14;
 
   /**
    * Serialize method to stream for remote call
@@ -85,44 +100,128 @@ public class WebKitSerializer {
     if (object == null) {
       stream.put(nullType);
       stream.putInt(0);
-    } else if (object instanceof Long) {
+      return;
+    }
+    if (object instanceof Long) {
       stream.put(longType);
       stream.putInt(-1);
       stream.putLong((Long)object);
+      return;
     }
-    else if (object instanceof Integer) {
+    if (object instanceof Integer) {
       stream.put(intType);
       stream.putInt(-1);
       stream.putInt((Integer)object);
+      return;
     }
-    else if (object instanceof Double) {
+    if (object instanceof Double) {
       stream.put(doubleType);
       stream.putInt(-1);
       stream.putDouble((Double)object);
-    } else if (object instanceof Boolean) {
+      return;
+    }
+    if (object instanceof Boolean) {
       stream.put(booleanType);
       stream.putInt(-1);
-      if ((Boolean)object) stream.put((byte)1);
-      else stream.put((byte)0);
-    } else if (object instanceof Object[]) {
+      stream.put((Boolean)object ? (byte)1 : (byte)0);
+      return;
+    }
+    if (object instanceof Object[]) {
       Object[] array = (Object[])object;
       stream.put(arrayType);
       stream.putInt(array.length);
       for (int i = 0; i < array.length; i++) {
         serialize(stream, array[i]);
       }
-    } else if (object instanceof String) {
+      return;
+    }
+    if (object instanceof String) {
       stream.put(stringType);
       stream.putInt(((String)object).getBytes().length);
       stream.asCharBuffer().put((String)object);
-    } else if (object instanceof Method){
+      return;
+    }
+    if (object instanceof Method){
       stream.put(methodType);
       stream.putInt(((Method)object).getName().length());
       stream.asCharBuffer().put(((Method)object).getName());
-    } else {
-      throw new WebDriverException("Unknow data type during serialization");
+      return;
     }
-
+    if (object instanceof Map) {
+      final Map map = (Map)object;
+      int len = map.size();
+      stream.put(mapType);
+      stream.putInt(len);
+      for (Object entry : map.entrySet()) {
+        serialize(stream, ((Map.Entry)entry).getKey());
+        serialize(stream, ((Map.Entry)entry).getValue());
+      }
+      return;
+    }
+    if (object instanceof List) {
+      final List obj = (List)object;
+      int size = obj.size();
+      stream.put(listType);
+      stream.putInt(size);
+      serialize(stream, object.getClass().getName());
+      for (Object entry : obj) {
+        serialize(stream, entry);
+        size--;
+      }
+      assert size == 0;
+      return;
+    }
+    if (object instanceof Collection) {
+      final Collection obj = (Collection)object;
+      int size = obj.size();
+      stream.put(collectionType);
+      stream.putInt(size);
+      serialize(stream, object.getClass().getName());
+      for (Object entry : obj) {
+        serialize(stream, entry);
+        size--;
+      }
+      assert size == 0;
+      return;
+    }
+    if (object instanceof ResultSetRows) {
+      final ResultSetRows obj = (ResultSetRows)object;
+      int size = obj.size();
+      stream.put(resultSetRowsType);
+      stream.putInt(size);
+      for (int i = 0; i < size; i++) {
+        serialize(stream, obj.item(i));
+      }
+      return;
+    }
+    if (object instanceof ResultSet) {
+      stream.put(resultSetType);
+      stream.putInt(-1);
+      final ResultSet obj = (ResultSet)object;
+      stream.putInt(obj.getLastInsertedRowId());
+      stream.putInt(obj.getNumberOfRowsAffected());
+      serialize(stream, obj.rows());
+      return;
+    }
+    if (object instanceof Location) {
+      stream.put(locationType);
+      stream.putInt(-1);
+      final Location obj = (Location)object;
+      stream.putDouble(obj.getLatitude());
+      stream.putDouble(obj.getLongitude());
+      stream.putDouble(obj.getAltitude());
+      return;
+    }
+    if (object instanceof AppCacheEntry) {
+      stream.put(appCacheEntryType);
+      stream.putInt(-1);
+      final AppCacheEntry obj = (AppCacheEntry)object;
+      serialize(stream, obj.getType());
+      serialize(stream, obj.getUrl());
+      serialize(stream, obj.getMimeType());
+      return;
+    }
+    throw new WebDriverException("Unknow data type during serialization");
   }
 
   /**
@@ -150,7 +249,7 @@ public class WebKitSerializer {
       case stringType:
         return stream.asCharBuffer().subSequence(stream.position(), stream.position() + size).toString();
       case arrayType:
-        ArrayList array = new ArrayList();
+        ArrayList array = new ArrayList(size);
         for (int i = 0; i < size; i++)
           array.add(stream);
         return array;
@@ -168,6 +267,57 @@ public class WebKitSerializer {
           throw new WebDriverException("Unable to found WebKitJNI class");
         }
         throw new WebDriverException("Unable to look up method " + name);
+      case mapType:
+        Map map = new HashMap();
+        for (int i = 0; i < size; i++) {
+          Object key   = deserialize(stream);
+          Object value = deserialize(stream);
+          map.put(key, value);
+        }
+        return map;
+      case listType:
+        String listTypeName = (String)deserialize(stream);
+        List list = null;
+        try {
+          list = (List)Class.forName(listTypeName).newInstance();
+        } catch (Exception e) {
+          throw new WebDriverException("Deserializer: List class not found: "
+            + listTypeName);
+        }
+        for (int i = 0; i < size; i++)
+          list.add(deserialize(stream));
+        return list;
+      case collectionType:
+        String collectionTypeName = (String)deserialize(stream);
+        Collection collection = null;
+        try {
+          collection = (Collection)Class.forName(collectionTypeName).newInstance();
+        } catch (Exception e) {
+          throw new WebDriverException("Deserializer: Collection class not found: "
+            + collectionTypeName);
+        }
+        for (int i = 0; i < size; i++)
+          collection.add(deserialize(stream));
+        return collection;
+      case resultSetType: {
+        int insertId       = stream.getInt();
+        int rowsAffected   = stream.getInt();
+        ResultSetRows rows = (ResultSetRows)deserialize(stream);
+        return new ResultSet(insertId, rowsAffected, rows);
+      }
+      case resultSetRowsType: {
+        List<Map<String, Object>> rows = new ArrayList(size);
+        for (int i = 0; i < size; i++) {
+          rows.add((Map<String, Object>)deserialize(stream));
+        }
+        return new ResultSetRows(rows);
+      }
+      case locationType: {
+        double latitude  = stream.getDouble();
+        double longitude = stream.getDouble();
+        double altitude  = stream.getDouble();
+        return new Location(latitude, longitude, altitude);
+      }
       default:
         throw new WebDriverException("Unknown data type during deserialization");
     }
