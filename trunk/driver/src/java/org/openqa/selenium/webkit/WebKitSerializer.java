@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.Collection;
 
+import org.openqa.selenium.webkit.WebKitJNI;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.html5.ResultSet;
 import org.openqa.selenium.html5.ResultSetRows;
@@ -60,8 +61,9 @@ public class WebKitSerializer {
   public static ByteBuffer putMethodIntoStream(Method method, Object args[]) throws WebDriverException {
     ByteBuffer stream = ByteBuffer.allocate(30000);
     serialize(stream, method);
-    for (int i = 0; i < method.getParameterTypes().length; i++)
+    for (int i = 0; i < method.getParameterTypes().length; i++) {
         serialize(stream, args[i]);
+    }
     return stream;
   }
 
@@ -138,13 +140,13 @@ public class WebKitSerializer {
     if (object instanceof String) {
       stream.put(stringType);
       stream.putInt(((String)object).getBytes().length);
-      stream.asCharBuffer().put((String)object);
+      stream.put(((String)object).getBytes());
       return;
     }
     if (object instanceof Method){
       stream.put(methodType);
-      stream.putInt(((Method)object).getName().length());
-      stream.asCharBuffer().put(((Method)object).getName());
+      stream.putInt(((Method)object).getName().getBytes().length);
+      stream.put(((Method)object).getName().getBytes());
       return;
     }
     if (object instanceof Map) {
@@ -247,18 +249,21 @@ public class WebKitSerializer {
         if (bool == 0) return new Boolean(false);
         return new Boolean(true);
       case stringType:
-        return stream.asCharBuffer().subSequence(stream.position(), stream.position() + size).toString();
+        String s = new String(stream.array(), stream.position(), size);
+        stream.position(stream.position()+size);
+        return s;
       case arrayType:
         ArrayList array = new ArrayList(size);
         for (int i = 0; i < size; i++)
           array.add(stream);
         return array;
       case methodType:
-        String name = stream.asCharBuffer().subSequence(stream.position(), stream.position() + size).toString();
+        String name = new String(stream.array(), stream.position(), size);
+        stream.position(stream.position()+size);
         try {
         // FIXME at the moment all methods should have different names
         // otherwise method lookup may fail
-          Class driver = Class.forName("org/openda/selenium/webkit/WebKitJNI"); 
+          Class driver = Class.forName("org.openqa.selenium.webkit.WebKitJNI"); 
           Method[] allMethods = driver.getDeclaredMethods();
           for (Method method : allMethods) {
             if (name.equals(method.getName())) return method;
@@ -319,7 +324,7 @@ public class WebKitSerializer {
         return new Location(latitude, longitude, altitude);
       }
       default:
-        throw new WebDriverException("Unknown data type during deserialization");
+        throw new WebDriverException("Unknown data type during deserialization: " + type);
     }
   }
 } 
