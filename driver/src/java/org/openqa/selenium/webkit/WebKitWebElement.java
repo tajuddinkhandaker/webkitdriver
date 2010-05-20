@@ -90,19 +90,19 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
   public void click() {
     assertElementDisplayed();
 
-    WebKitJNI.getInstance().click(element);
+    parent.jni().click(element);
   }
 
   public void submit() {
     assertElementNotStale();
-    if(WebKitJNI.getInstance().submit(element) == 0) {
+    if(parent.jni().submit(element) == 0) {
       throw new WebDriverException("Cannot find form element");
     }
   }
 
   public void clear() {
     assertElementNotStale();
-    long ret = WebKitJNI.getInstance().setValue(element, "");
+    long ret = parent.jni().setValue(element, "");
     if (ret == 0) {
       throw new WebDriverException("Error whem clearing element");
     }
@@ -115,14 +115,14 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     for (int i=0;i<value.length;i++) {
         str += value[i];
     }
-    if(WebKitJNI.getInstance().sendKeys(element, str) == 0) {
+    if(parent.jni().sendKeys(element, str) == 0) {
       throw new WebDriverException("Error sending keys to element");
     }
   }
 
   public String getTagName() {
     assertElementNotStale();
-    return WebKitJNI.getInstance().getTagName(element).toLowerCase();
+    return parent.jni().getTagName(element).toLowerCase();
   }
 
     /**
@@ -135,13 +135,13 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
   public String getValue() {
     assertElementNotStale();
-    String val =  WebKitJNI.getInstance().getValue(element);
+    String val =  parent.jni().getValue(element);
     return (val == null) ? "" : val;
   }
 
   public String getAttribute(String name) {
     assertElementNotStale();
-    String val = WebKitJNI.getInstance().getAttribute(element, name);
+    String val = parent.jni().getAttribute(element, name);
     String lowerName = name.toLowerCase();
     if ("disabled".equals(lowerName)) {
       return ((val == null )? "false" : "true");
@@ -159,7 +159,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
         return val.equals("selected") ? "true" : "false";
     }
     if (val == null && "index".equals(lowerName) && getTagName().toLowerCase().equals("option")) {
-        long idx = WebKitJNI.getInstance().optionIndex(element);
+        long idx = parent.jni().optionIndex(element);
         if (idx >= 0)
           val = String.valueOf(idx);
     }
@@ -169,7 +169,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
   public boolean toggle() {
     assertElementDisplayed();
 
-    long retval = WebKitJNI.getInstance().toggle(element);
+    long retval = parent.jni().toggle(element);
     if (retval < 0) {
       throw new UnsupportedOperationException( "You may only toggle checkboxes or options in a select which allows multiple selections: " + getTagName());
     }
@@ -178,7 +178,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
   public boolean isSelected() {
     assertElementNotStale();
-    long retval = WebKitJNI.getInstance().selected(element);
+    long retval = parent.jni().selected(element);
     if (retval == -1) {
       throw new UnsupportedOperationException("Unable to determine if element is selected.");
     }
@@ -194,7 +194,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
     assertElementDisplayed();
 
-    long retval = WebKitJNI.getInstance().setSelected(element);
+    long retval = parent.jni().setSelected(element);
     if (retval == -1) {
        throw new UnsupportedOperationException("Unable to select element.");
     }
@@ -212,7 +212,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
   public String getText() {
     assertElementNotStale();
-    String str = WebKitJNI.getInstance().getText(element).trim();
+    String str = parent.jni().getText(element).trim();
     // Replace &nbsp character with ordinary space
     str = str.replace( (char)160, ' ');
     str = str.replaceAll("\r", "");
@@ -247,7 +247,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     if (xpathExpr.startsWith("//") && !xpathExpr.startsWith("//html")) {
       xpathExpr = "." + xpathExpr;
     }
-    return fromNodeList (WebKitJNI.getInstance().getElementsByXpath(element, xpathExpr));
+    return fromNodeList (parent.jni().getElementsByXpath(element, xpathExpr));
   }
 
   public WebElement findElementByLinkText(String linkText) {
@@ -297,7 +297,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     // TODO Workaround for svg, better to correctly process namespaces
     if (name.startsWith("svg:"))
       tag = name.substring(4);
-    return fromNodeList (WebKitJNI.getInstance().getElementsByTagName(element, tag));
+    return fromNodeList (parent.jni().getElementsByTagName(element, tag));
   }
 
   public WebElement findElementByName(String name) {
@@ -307,7 +307,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
   public List<WebElement> findElementsByName(String name) {
     assertElementNotStale();
-    return fromNodeList (WebKitJNI.getInstance().getElementsByName(element, name));
+    return fromNodeList (parent.jni().getElementsByName(element, name));
   }
 
   public static List<WebElement> createNodeList(WebKitDriver parent, long noderef) {
@@ -316,18 +316,18 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     }
 
     List<WebElement> webElements = new ArrayList<WebElement>();
-    long len = WebKitJNI.getInstance().nodeListLength(noderef);
+    long len = parent.jni().nodeListLength(noderef);
     for(int i = 0; i < len; i++) {
-      long ref = WebKitJNI.getInstance().nodeListGet(noderef, i);
+      long ref = parent.jni().nodeListGet(noderef, i);
       if (ref != 0) {
         webElements.add ( new WebKitWebElement(parent, ref) );
       }
       else {
-        WebKitJNI.getInstance().nodeListRelease(noderef);
+        parent.jni().nodeListRelease(noderef);
         throw new NoSuchElementException(String.format("Invalid element returned in search result"));
       }
     }
-    WebKitJNI.getInstance().nodeListRelease(noderef);
+    parent.jni().nodeListRelease(noderef);
     return webElements;
   }
 
@@ -339,18 +339,18 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     }
 
     List<WebElement> webElements = new ArrayList<WebElement>();
-    long len = WebKitJNI.getInstance().nodeListLength(noderef);
+    long len = parent.jni().nodeListLength(noderef);
     for(int i = 0; i < len; i++) {
-      long ref = WebKitJNI.getInstance().nodeListGet(noderef, i);
+      long ref = parent.jni().nodeListGet(noderef, i);
       if (ref != 0) {
         webElements.add ( new WebKitWebElement(this.parent, ref) );
       }
       else {
-        WebKitJNI.getInstance().nodeListRelease(noderef);
+        parent.jni().nodeListRelease(noderef);
         throw new NoSuchElementException(String.format("Invalid element returned in search result"));
       }
     }
-    WebKitJNI.getInstance().nodeListRelease(noderef);
+    parent.jni().nodeListRelease(noderef);
     return webElements;
   }
 
@@ -374,13 +374,13 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
   public boolean isDisplayed() {
     assertElementNotStale();
-    return WebKitJNI.getInstance().isVisible(element);
+    return parent.jni().isVisible(element);
   }
 
   public Point getLocation() {
     assertElementNotStale();
 
-    Rectangle rect = (Rectangle)WebKitJNI.getInstance().getRect(element);
+    Rectangle rect = (Rectangle)parent.jni().getRect(element);
     if (rect == null) {
       throw new WebDriverException("Cannot determine location of element");
     }
@@ -390,7 +390,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
   public Dimension getSize() {
     assertElementNotStale();
 
-    Rectangle rect = (Rectangle)WebKitJNI.getInstance().getRect(element);
+    Rectangle rect = (Rectangle)parent.jni().getRect(element);
     if (rect == null) {
       throw new WebDriverException("Cannot determine size of element");
     }
@@ -401,7 +401,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     assertElementDisplayed();
 
     int duration = parent.manage().getSpeed().getTimeOut();
-    WebKitJNI.getInstance().drag(element, moveRightBy, moveDownBy, duration);
+    parent.jni().drag(element, moveRightBy, moveDownBy, duration);
   }
 
   public void dragAndDropOn(RenderedWebElement element) {
@@ -414,12 +414,12 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     Point to     = element.getLocation();
     int duration = parent.manage().getSpeed().getTimeOut();
 
-    WebKitJNI.getInstance().drag(this.element, to.x - from.x, to.y - from.y, duration);
+    parent.jni().drag(this.element, to.x - from.x, to.y - from.y, duration);
   }
 
   public String getValueOfCssProperty(String propertyName) {
     assertElementNotStale();
-    String val = WebKitJNI.getInstance().getProperty(element, propertyName);
+    String val = parent.jni().getProperty(element, propertyName);
 
     if (val == null) {
       return "";
@@ -482,7 +482,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
   }
 
   protected void assertElementNotStale() {
-      long retval = WebKitJNI.getInstance().stale(element);
+      long retval = parent.jni().stale(element);
   if (retval != 0) {
           throw new StaleElementReferenceException(
             "Element appears to be stale. Did you navigate away from the page that contained it? And is the current window focussed the same as the one holding this element?");
@@ -501,18 +501,18 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
    * Can a player play this audio or video, (support this codec or not)
    */
   public boolean canPlayType(String contentType) {
-      return WebKitJNI.getInstance().canPlayType(element, contentType);
+      return parent.jni().canPlayType(element, contentType);
   }
 
   /**
    * Controls
    */
   public void play() {
-      WebKitJNI.getInstance().mediaPlay(element, true);
+      parent.jni().mediaPlay(element, true);
   }
 
   public void pause() {
-      WebKitJNI.getInstance().mediaPlay(element, false);
+      parent.jni().mediaPlay(element, false);
   }
 
 }

@@ -46,6 +46,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebDriver.Timeouts;
+import org.openqa.selenium.webkit.WebKitSerializer;
 import org.openqa.selenium.html5.AppCacheEntry;
 import org.openqa.selenium.html5.DatabaseStorage;
 import org.openqa.selenium.html5.Location;
@@ -60,6 +61,7 @@ import org.openqa.selenium.internal.ReturnedCookie;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import java.lang.reflect.*;
 import java.lang.Thread;
 import java.net.ConnectException;
 import java.net.URL;
@@ -77,7 +79,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.nio.ByteBuffer;
+import java.lang.Process;
+import java.lang.ProcessBuilder;
 import java.io.IOException;
+import java.io.DataOutputStream;
+import java.io.DataInputStream;
 
 public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecutor,
         FindsById, FindsByLinkText, FindsByXPath, FindsByName, FindsByTagName,
@@ -85,16 +92,70 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
         HTML5StorageSupport, TakesScreenshot {
   private long default_controller = 0;
   private long controller = 0;
+  private WebKitInterface jni = (WebKitInterface)WebKitJNI.getInstance();
   private Speed speed = Speed.FAST;
   private WebKitAlert currentAlert;
   private long implicitWait = 0;
+
+  /** 
+   * Forwarder class implements InvocationHandler interface and
+   * used as a dymanic proxy for invoking JNI methods in a separate
+   * java process hosting headless WebKit library.
+  */
+  private class Forwarder implements InvocationHandler
+  {
+    private Process wrapper;
+    private DataOutputStream out;
+    private DataInputStream in;
+
+    public Forwarder() {
+        ProcessBuilder pb = new ProcessBuilder(System.getProperty("java.home") +"/bin/java", "-classpath", System.getProperty("java.class.path") , "org.openqa.selenium.webkit.WebKitWrapper");
+        try {
+            wrapper = pb.start();
+            out = new DataOutputStream(wrapper.getOutputStream());
+            in = new DataInputStream(wrapper.getInputStream());
+        } catch (IOException e) {
+            throw new WebDriverException("WebKitDriver wrapper can not be spawned");
+        }
+    }
+
+    public Object invoke(Object proxy, Method method, Object[] args) 
+    {
+        try {
+            /* Serialize and send request to remove proces */
+            ByteBuffer bb = WebKitSerializer.putMethodIntoStream(method, args);
+            out.writeInt(bb.position());
+            out.write(bb.array(), 0, bb.position());
+            out.flush();
+
+            /* Receive responce and deserialize it */
+            int len = in.readInt();
+            ByteBuffer buffer = ByteBuffer.allocate(len);
+            int c = in.read(buffer.array());
+            if (c != len)
+                throw new WebDriverException("Communication error");
+            return WebKitSerializer.deserialize(buffer);
+        } catch (Exception e) {
+            throw new WebDriverException("unexpected invocation exception: " +
+                       e.getMessage());
+        }
+    }
+  }
 
   public WebKitDriver() {
     this(null);
   }
 
   public WebKitDriver(String userAgent) {
-    controller = WebKitJNI.getInstance().create(userAgent);
+    if (!WebKitJNI.isMainThread())
+    {
+        Forwarder handler = new Forwarder();
+        jni = (WebKitInterface)Proxy.newProxyInstance(
+                            WebKitInterface.class.getClassLoader(),
+                            new Class[] { WebKitInterface.class },
+                            handler);
+    }
+    controller = jni.create(userAgent);
     default_controller = controller;
   }
 
@@ -102,17 +163,21 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     controller = ref;
   }
 
+  public WebKitInterface jni() {
+    return jni;
+  }
+
   private WebKitWebElement rootNode()
   {
     try {
-      return new WebKitWebElement(this, WebKitJNI.getInstance().getDocument(controller));
+      return new WebKitWebElement(this, jni.getDocument(controller));
     } catch (StaleElementReferenceException e) {
       throw new NoSuchElementException(String.format("Document element is stale"));
     }
   }
 
   public void get(String url) {
-    long status = WebKitJNI.getInstance().get(controller, url);
+    long status = jni.get(controller, url);
     if (status == 0) {
       throw new WebDriverException();
     }
@@ -120,11 +185,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
   public String getCurrentUrl() {
     assertInitialized();
-    return WebKitJNI.getInstance().getUrl(controller);
+    return jni.getUrl(controller);
   }
 
   public String getTitle() {
-    return WebKitJNI.getInstance().getTitle(controller);
+    return jni.getTitle(controller);
   }
 
   public WebElement findElement(By by) {
@@ -155,12 +220,12 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public String getPageSource() {
-    return WebKitJNI.getInstance().getPageSource(controller);
+    return jni.getPageSource(controller);
   }
 
   public void close() {
     // Close current window and switch to default window.
-    WebKitJNI.getInstance().destroy(controller);
+    jni.destroy(controller);
     switchToDefaultWindow();
   }
 
@@ -189,18 +254,18 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     if (default_controller != 0) {
       for(String handle : getWindowHandles()) {
         long ref = Integer.parseInt(handle);
-        WebKitJNI.getInstance().destroy(ref);
+        jni.destroy(ref);
       }
       controller = 0;
       default_controller = 0;
-      WebKitJNI.getInstance().deleteCookie(controller, null);
+      jni.deleteCookie(controller, null);
     }
   }
 
   public Set<String> getWindowHandles() {
     Set<String> allHandles = new HashSet<String>();
     if (default_controller != 0) {
-      String handles = WebKitJNI.getInstance().getAllWindowHandles();
+      String handles = jni.getAllWindowHandles();
       if (handles.length() != 0) {
         for (String h : handles.split(","))    {
             allHandles.add(h);
@@ -211,7 +276,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public String getWindowHandle() {
-    return WebKitJNI.getInstance().getWindowHandle(controller);
+    return jni.getWindowHandle(controller);
   }
 
   private Object parseArgument (Object obj) {
@@ -240,7 +305,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       for (Object obj : args)
         scriptArgs.add(parseArgument(obj));
     scriptArgs.add(script);
-    Object result = WebKitJNI.getInstance().evaluateJS(controller, scriptArgs.toArray());
+    Object result = jni.evaluateJS(controller, scriptArgs.toArray());
     if (result instanceof Exception) throw new WebDriverException();
     return result;
   }
@@ -295,11 +360,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
 
   public boolean isJavascriptEnabled() {
-    return WebKitJNI.getInstance().isJavascriptEnabled(controller);
+    return jni().isJavascriptEnabled(controller);
   }
 
   public void setJavascriptEnabled(boolean enableJavascript) {
-    WebKitJNI.getInstance().setJavascriptEnabled(controller, enableJavascript);
+    jni().setJavascriptEnabled(controller, enableJavascript);
   }
 
   public ResultSet executeSQL(String db, String query, Object... args) {    
@@ -316,9 +381,9 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     // to do the parsing part
     Object len = executeScript("return "+dbparams[3]+";");
     if (!(len instanceof Long)) throw new WebDriverException ("Incorrect DB size");
-    long dbRef = WebKitJNI.getInstance().openDatabase(controller, dbparams[0], dbparams[1], dbparams[2], (Long)len);    
-    Object result = WebKitJNI.getInstance().executeSQL(controller, dbRef, query, args);
-    WebKitJNI.getInstance().closeDatabase(dbRef);
+    long dbRef = jni.openDatabase(controller, dbparams[0], dbparams[1], dbparams[2], (Long)len);    
+    Object result = jni.executeSQL(controller, dbRef, query, args);
+    jni.closeDatabase(dbRef);
     if (result instanceof ResultSet) return (ResultSet)result;
     if (result instanceof WebDriverException) throw (WebDriverException)result;
 
@@ -327,12 +392,12 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
   public List<AppCacheEntry> getAppCache() 
   {
-    return (List<AppCacheEntry>)WebKitJNI.getInstance().getAppCache(controller);
+    return (List<AppCacheEntry>)jni.getAppCache(controller);
   }
 
   public AppCacheStatus status() 
   {
-    int status = WebKitJNI.getInstance().getAppCacheStatus(controller);
+    int status = jni.getAppCacheStatus(controller);
     if (status < 0) {
       throw new WebDriverException("Can not determine application cache status");
     }
@@ -340,7 +405,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public boolean isOnline() {
-    long state = WebKitJNI.getInstance().online();
+    long state = jni.online();
     if (state == 1)
       return true;
     if (state == 0)
@@ -349,13 +414,13 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public void setOnline(boolean online) {
-    long status = WebKitJNI.getInstance().setOnline(online);
+    long status = jni.setOnline(online);
     if (status != 0)
       throw new WebDriverException("Can not change current network state");
   }
 
   private boolean isAlert() {
-      if (WebKitJNI.getInstance().getAlertText(controller, false) == null)
+      if (jni.getAlertText(controller, false) == null)
           return false;
 
       currentAlert = new WebKitAlert();
@@ -364,7 +429,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
   private class WebKitTargetLocator implements TargetLocator {
     public WebDriver frame(int frameIndex) {
-      long status = WebKitJNI.getInstance().selectFrameByIdx(controller, frameIndex);
+      long status = jni.selectFrameByIdx(controller, frameIndex);
       if (status == 0) {
         throw new NoSuchFrameException("Cannot find frame: " + frameIndex);
       }
@@ -372,7 +437,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     }
 
     public WebDriver frame(String name) {
-      long status = WebKitJNI.getInstance().selectFrameByName(controller, name);
+      long status = jni.selectFrameByName(controller, name);
       if (status == 0) {
         throw new NoSuchFrameException("Cannot find frame: " + name);
       }
@@ -381,7 +446,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public WebDriver window(String windowId) {
       // Use default_controller, because controller may be destroyed at the moment
-      long ref = WebKitJNI.getInstance().selectWindow(default_controller, windowId);
+      long ref = jni.selectWindow(default_controller, windowId);
       if (ref == 0) {
         throw new NoSuchWindowException("Cannot find window: " + windowId);
       }
@@ -392,7 +457,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     public WebDriver defaultContent() {
       switchToDefaultWindow();
       if (controller != 0) {
-        long status = WebKitJNI.getInstance().defaultContent(controller);
+        long status = jni.defaultContent(controller);
         if (status == 0) {
           throw new WebDriverException("Error switching to default content");
         }
@@ -401,7 +466,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     }
 
     public WebElement activeElement() {
-      return new WebKitWebElement(WebKitDriver.this, WebKitJNI.getInstance().activeElement(controller));
+      return new WebKitWebElement(WebKitDriver.this, jni.activeElement(controller));
     }
 
     @SuppressWarnings("unused")
@@ -416,11 +481,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
   private class WebKitNavigation implements Navigation {
     public void back() {
-      WebKitJNI.getInstance().goBack(controller);
+      jni.goBack(controller);
     }
 
     public void forward() {
-      WebKitJNI.getInstance().goForward(controller);
+      jni.goForward(controller);
     }
 
     public void to(String url) {
@@ -432,7 +497,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     }
 
     public void refresh() {
-      WebKitJNI.getInstance().refresh(controller);
+      jni.refresh(controller);
     }
   }
 
@@ -515,14 +580,14 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             if (cookie.isSecure())
                 cookieStr += ";secure";
 
-            if (WebKitJNI.getInstance().setCookie(controller, cookieStr) == 0)
+            if (jni.setCookie(controller, cookieStr) == 0)
                 throw new WebDriverException("Add cookie error");
         }
 
         public Cookie getCookieNamed(String name) {
             //controller.evalJS("document.cookie =\"" + name + "=; expires=Thu, 01-Jan-70 00:00:01 GMT;\"");
 
-            String rawCookies = WebKitJNI.getInstance().getCookieJar(controller);
+            String rawCookies = jni.getCookieJar(controller);
 
             while (true)
             {
@@ -548,11 +613,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
         public void deleteCookieNamed(String name) {
             //controller.evalJS("document.cookie =\"" + name + "=; expires=Thu, 01-Jan-70 00:00:01 GMT;\"");
-            WebKitJNI.getInstance().deleteCookie(controller, name);
+            jni.deleteCookie(controller, name);
         }
 
         public void deleteCookie(Cookie cookie) {
-            String inRawCookies = WebKitJNI.getInstance().getCookieJar(controller);
+            String inRawCookies = jni.getCookieJar(controller);
 
             if (inRawCookies.length() == 0)
                 return;
@@ -589,19 +654,19 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
                 if (outRawCookies.length() > 0)
                     outRawCookies = outRawCookies.substring(1);
 
-                WebKitJNI.getInstance().setCookieJar(controller, outRawCookies);
+                jni.setCookieJar(controller, outRawCookies);
             }
         }
 
         public void deleteAllCookies() {
             //controller.evalJS("document.cookie = null");
-            WebKitJNI.getInstance().deleteCookie(controller, null);
+            jni.deleteCookie(controller, null);
         }
 
         // --- Return all cookies for current document ---
         public Set<Cookie> getCookies() {
             Set<Cookie> retCookies = new HashSet<Cookie>();
-            String rawCookies = WebKitJNI.getInstance().getCookieJar(controller);
+            String rawCookies = jni.getCookieJar(controller);
             String path = "/";
 
             try {
@@ -674,13 +739,13 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public Location location() {
-    Location location = (Location)WebKitJNI.getInstance().getPosition(controller);
+    Location location = (Location)jni.getPosition(controller);
     if (location == null) throw new WebDriverException("Unable to get location");
     return location;
   }
 
   public void setLocation(Location location) {
-    WebKitJNI.getInstance().setPosition(controller, location);
+    jni.setPosition(controller, location);
   }
 
   private void assertInitialized()
@@ -692,7 +757,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   private class WebKitAlert implements Alert
   {
       public void dismiss() {
-        WebKitJNI.getInstance().getAlertText(controller, true);
+        jni.getAlertText(controller, true);
         currentAlert = null;
       }
 
@@ -700,7 +765,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       }
 
       public String getText() {
-        return WebKitJNI.getInstance().getAlertText(controller, false);
+        return jni.getAlertText(controller, false);
       }
   }
 
@@ -721,12 +786,12 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public void clear() 
     {
-      WebKitJNI.getInstance().storageClear(controller, isSession);
+      jni.storageClear(controller, isSession);
     }
 
     public boolean containsKey(Object key)
     {
-      return (null != WebKitJNI.getInstance().storageGetValue(controller, isSession, key.toString()));
+      return (null != jni.storageGetValue(controller, isSession, key.toString()));
     }
 
     public boolean containsValue(Object value)
@@ -746,7 +811,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public Object get(Object key)
     {
-      return WebKitJNI.getInstance().storageGetValue(controller, isSession, key.toString());
+      return jni.storageGetValue(controller, isSession, key.toString());
     }
 
     public int hashCode()
@@ -766,7 +831,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public Object put(String key, Object value)
     {
-      return WebKitJNI.getInstance().storageSetValue(controller, isSession, 
+      return jni.storageSetValue(controller, isSession, 
                 key, value.toString());
     }
 
@@ -777,12 +842,12 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public Object remove(Object key)
     {
-      return WebKitJNI.getInstance().storageSetValue(controller, isSession, key.toString(), null);
+      return jni.storageSetValue(controller, isSession, key.toString(), null);
     }
 
     public int size()
     {
-      long len = WebKitJNI.getInstance().storageLength(controller, isSession);
+      long len = jni.storageLength(controller, isSession);
       if (len < 0)
         throw new WebDriverException("Can not access storage");
       return (int)len;
@@ -812,7 +877,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public <X> X getScreenshotAs(OutputType<X> target) {
-      String dump = WebKitJNI.getInstance().getDOMDump(controller);
+      String dump = jni().getDOMDump(controller);
       String base64str = new Base64Encoder().encode(dump.getBytes());
       return target.convertFromBase64Png(base64str);
   }

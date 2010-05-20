@@ -35,15 +35,7 @@ limitations under the License.
 
 package org.openqa.selenium.webkit;
 
-public class WebKitJNI implements WebKitInterface {
-
-  private static final WebKitJNI INSTANCE = new WebKitJNI();
-  private static java.lang.Thread mainThread = java.lang.Thread.currentThread();
-
-  public static synchronized boolean isMainThread()
-  {
-    return mainThread.equals(java.lang.Thread.currentThread());
-  }
+public interface WebKitInterface {
 
   /**
    * Delete cookie with name for current document.
@@ -53,7 +45,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebDriver instance
    * @return
    */
-  public native long deleteCookie(long ref, String cName);
+  public long deleteCookie(long ref, String cName);
 
   /**
    * Set all cookies in internal format for current document.
@@ -62,7 +54,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebDriver instance
    * @return
    */
-  public native long setCookieJar(long ref, String cookies);
+  public long setCookieJar(long ref, String cookies);
 
   /**
    * Get all cookies in internal format for current document.
@@ -71,7 +63,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebDriver instance
    * @return - all cookies in internal format
    */
-  public native String getCookieJar(long ref);
+  public String getCookieJar(long ref);
 
   /**
    * Set cookies for current document.
@@ -80,7 +72,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref     - reference to WebDriver instance
    * @return
    */
-  public native long setCookie(long ref, String cookies);
+  public long setCookie(long ref, String cookies);
 
   /**
    * Get cookies of current document.
@@ -88,7 +80,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebDriver instance
    * @return    - string with all appended cookies
    */
-  public native String cookies(long ref);
+  public String cookies(long ref);
 
   /**
    * Go to previous element in browse history.
@@ -96,7 +88,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebDriver instance
    * @return
    */
-  public native long goBack(long ref);
+  public long goBack(long ref);
 
   /**
    * Go to next element in browse history.
@@ -104,7 +96,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebDriver instance
    * @return
    */
-  public native long goForward(long ref);
+  public long goForward(long ref);
 
   /**
    * Reload current document.
@@ -112,7 +104,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebDriver instance
    * @return
    */
-  public native long refresh(long ref);
+  public long refresh(long ref);
 
   /**
    * for getting ref to Document
@@ -120,7 +112,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param inObj - controller reference
    * @return ref on Document instance
    */
-  public native long getDocument(long ref);
+  public long getDocument(long ref);
 
   /**
    * Document.cpp
@@ -129,7 +121,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param query - id
    * @return reference to Element instance
    */
-  public native long getElementById(long ref, String query);
+  public long getElementById(long ref, String query);
 
   /**
    * Node.cpp
@@ -138,7 +130,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param query - tagName
    * @return reference to NodeList instance
    */
-  public native long getElementsByTagName(long ref, String query);
+  public long getElementsByTagName(long ref, String query);
 
   /**
    * Node.cpp
@@ -147,7 +139,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param query - tagName
    * @return reference to NodeList instance
    */
-  public native long getElementsByName(long ref, String query);
+  public long getElementsByName(long ref, String query);
 
   /**
    * Node.cpp
@@ -156,7 +148,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param query - tagName
    * @return reference to NodeList instance
    */
-  public native long getElementsByXpath(long ref, String query);
+  public long getElementsByXpath(long ref, String query);
 
   /**
    * NodeList.cpp
@@ -164,7 +156,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to NodeList
    * @return size of NodeList
    */
-  public native long nodeListLength(long ref);
+  public long nodeListLength(long ref);
 
   /**
    * NodeList.cpp
@@ -172,7 +164,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to NodeList
    * @return size of NodeList
    */
-  public native long nodeListGet(long ref, int i);
+  public long nodeListGet(long ref, int i);
 
   /**
    * Release NodeList after it is not needed anymore
@@ -180,7 +172,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to NodeList
    * @return size of NodeList
    */
-  public native long nodeListRelease(long ref);
+  public long nodeListRelease(long ref);
 
   /**
    * Element.cpp
@@ -188,7 +180,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to Element instance
    * @return
    */
-  public native String getTagName(long ref);
+  public String getTagName(long ref);
 
   /**
    * Element.cpp
@@ -196,7 +188,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to Element instance
    * @return
    */
-  public native String getAttribute(long ref, String name);
+  public String getAttribute(long ref, String name);
 
   /**
    * Element.cpp
@@ -205,7 +197,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param name - property name
    * @return property value
    */
-  public native String getProperty(long ref, String name);
+  public String getProperty(long ref, String name);
 
   /**
    * Element.cpp
@@ -213,7 +205,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to Element instance
    * @return
    */
-  public native String getText(long ref);
+  public String getText(long ref);
 
   /**
    * InputElement.cpp
@@ -221,7 +213,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference
    * @return
    */
-  public native String getValue(long ref);
+  public String getValue(long ref);
 
   /**
    * Send keys
@@ -229,7 +221,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference
    * @return
    */
-  public native long sendKeys(long ref, String val);
+  public long sendKeys(long ref, String val);
 
   /**
    * InputElement.cpp
@@ -237,7 +229,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference
    * @return
    */
-  public native long setValue(long ref, String val);
+  public long setValue(long ref, String val);
 
   /**
    * Get current frame title
@@ -245,7 +237,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebKitDriver
    * @return frame title
    */
-  public native String getTitle(long ref);
+  public String getTitle(long ref);
 
   /**
    * Get DOM object structure (in HTML)
@@ -253,7 +245,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebKitDriver
    * @return dom tree
    */
-  public native String getDOMDump(long ref);
+  public String getDOMDump(long ref);
 
   /**
    * Get page source
@@ -261,7 +253,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebKitDriver
    * @return page source as HTML
    */
-  public native String getPageSource(long ref);
+  public String getPageSource(long ref);
 
   /**
    * Get current frame URL
@@ -269,7 +261,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebKitDriver
    * @return frame URL
    */
-  public native String getUrl(long ref);
+  public String getUrl(long ref);
 
   /**
    * Create instance of WebKitDriver
@@ -277,7 +269,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param userAgent - user agent string to use
    * @return ref on Document instance
    */
-  public native long create(String userAgent);
+  public long create(String userAgent);
 
   /**
    * Destroys instance of WebKitDriver
@@ -285,7 +277,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebKitDriver
    * @return 1 - destroyed correctly, 0 - empty ref passed
    */
-  public native long destroy(long ref);
+  public long destroy(long ref);
 
   /**
    * Load URL
@@ -294,7 +286,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param query - URL to load
    * @return ref on Document instance
    */
-  public native long get(long ref, String query);
+  public long get(long ref, String query);
 
   /**
    * Click on input element
@@ -302,7 +294,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return success or not
    */
-  public native long click(long ref);
+  public long click(long ref);
 
   /**
    * Reset input element to default value
@@ -310,7 +302,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return success or not
    */
-  public native long reset(long ref);
+  public long reset(long ref);
 
   /**
    * Submit a form
@@ -318,7 +310,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return success or not
    */
-  public native long submit(long ref);
+  public long submit(long ref);
 
   /**
    * Toggle checkbox of selection option
@@ -326,7 +318,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return current state, -1 in case of error
    */
-  public native long toggle(long ref);
+  public long toggle(long ref);
 
   /**
    * Check if element is selected
@@ -334,7 +326,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return 1 - selected, 0 - not selected, -1 - error
    */
-  public native long selected(long ref);
+  public long selected(long ref);
 
   /**
    * Make element selected
@@ -342,7 +334,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return 0 - OK, -1 in case of error
    */
-  public native long setSelected(long ref);
+  public long setSelected(long ref);
 
   /**
    * Get option element index
@@ -350,7 +342,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return index starting with 0, -1 in case of error
    */
-  public native long optionIndex(long ref);
+  public long optionIndex(long ref);
 
   /**
    * Get active element
@@ -358,7 +350,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebKitDriver object
    * @return reference to active element
    */
-  public native long activeElement(long ref);
+  public long activeElement(long ref);
 
   /**
    * Select frame by name
@@ -367,7 +359,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param name - frame name
    * @return 1 - success, 0 - failure
    */
-  public native long selectFrameByName(long ref, String name);
+  public long selectFrameByName(long ref, String name);
 
   /**
    * Select frame by idx
@@ -376,7 +368,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param name - frame idx
    * @return 1 - success, 0 - failure
    */
-  public native long selectFrameByIdx(long ref, long idx);
+  public long selectFrameByIdx(long ref, long idx);
 
   /**
    * Select window by name
@@ -385,7 +377,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param name - window name
    * @return refernece to page controller object, 0 if not found
    */
-  public native long selectWindow(long ref, String name);
+  public long selectWindow(long ref, String name);
 
   /**
    * Get current window handle
@@ -393,14 +385,14 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebKitDriver object
    * @return current window handle
    */
-  public native String getWindowHandle(long ref);
+  public String getWindowHandle(long ref);
 
   /**
    * Get all window handles
    *
    * @return string of comma-separated windows handles
    */
-  public native String getAllWindowHandles();
+  public String getAllWindowHandles();
 
   /**
    * Select main frame
@@ -408,7 +400,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebKitDriver object
    * @return 1 - success, 0 - failure
    */
-  public native long defaultContent(long ref);
+  public long defaultContent(long ref);
 
   /**
    * Move focus on the element
@@ -416,7 +408,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element to focus
    * @return 0 if element can not be focused, 1 otherwise
    */
-  public native long focus(long ref);
+  public long focus(long ref);
 
   /**
    * Drag element
@@ -426,11 +418,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param duration - operation duration in ms
    * @return
    */
-  public native long drag(long ref, int toX, int toY, int duration);
-
-  public static WebKitJNI getInstance() {
-    return INSTANCE;
-  }
+  public long drag(long ref, int toX, int toY, int duration);
 
   /**
    * Get enable/disable JS status
@@ -438,7 +426,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to controller
    * @return JS enabled status
    */
-  public native boolean isJavascriptEnabled(long ref);
+  public boolean isJavascriptEnabled(long ref);
 
   /**
    * Enable/disable JS
@@ -446,7 +434,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to controller
    * @param enabled - enable/disable script
    */
-  public native void setJavascriptEnabled(long ref, boolean enabled);
+  public void setJavascriptEnabled(long ref, boolean enabled);
 
   /**
    * Evaluating Java Script
@@ -455,7 +443,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param script - Java Script to evaluate
    * @return reference on JS Value
    */
-  public native Object evaluateJS (long ref, Object[] arguments);
+  public Object evaluateJS (long ref, Object[] arguments);
 
   /**
    * Check if element is stale
@@ -463,7 +451,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return 1 - stale, 0 - not stale, -1 error
    */
-  public native long stale(long ref);
+  public long stale(long ref);
 
   /**
    * Check if element is visible
@@ -471,7 +459,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return boolean
    */
-  public native boolean isVisible(long ref);
+  public boolean isVisible(long ref);
 
   /**
    * Get's actual element size (from renderer)
@@ -479,7 +467,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to DOM element
    * @return Rectangle
    */
-  public native Object getRect(long ref);
+  public Object getRect(long ref);
 
   /**
    * Get text of current alert message
@@ -488,7 +476,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param clr - clear alert status
    * @return Alert text or null
    */
-  public native String getAlertText(long ref, boolean clr);
+  public String getAlertText(long ref, boolean clr);
   
   /**
    * Get Geolocation
@@ -496,7 +484,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to WebKitDriverObject
    * @return return object GeoLocation
    */
-  public native Object getPosition(long ref);
+  public Object getPosition(long ref);
 
   /**
    * Helper function set new Geolocation in Client Controller
@@ -505,14 +493,14 @@ public class WebKitJNI implements WebKitInterface {
    * @param location - new Geolocation
    * @return return object GeoLocation
    */
-  public native void setPosition(long ref, Object location);
+  public void setPosition(long ref, Object location);
 
   /**
    * Check if network state is online
    *
    * @return 1 - selected, 0 - not selected, -1 - error
    */
-  public native long online();
+  public long online();
 
   /**
    * Set current network state
@@ -520,7 +508,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param online - true if new state is online, false otherwise
    * @return 0 - OK, -1 in case of error
    */
-  public native long setOnline(boolean online);
+  public long setOnline(boolean online);
 
   /**
    * Check is media/codec supported for HTMLMediaElement 
@@ -529,7 +517,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param contentType - string with content media type and codec info
    * @return true - content type may be played
    */
-  public native boolean canPlayType(long ref, String contentType);
+  public boolean canPlayType(long ref, String contentType);
 
   /**
    * Do play/pause for HTMLMediaElement
@@ -538,7 +526,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param doPlay - perform pause() for false and play() for true
    * @return true - content type may be played
    */
-  public native void mediaPlay(long ref, boolean doPlay);
+  public void mediaPlay(long ref, boolean doPlay);
 
   /**
    * Get application cache status
@@ -546,7 +534,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to controller
    * @return WebKit status of application cache
    */
-  public native int getAppCacheStatus(long ref);
+  public int getAppCacheStatus(long ref);
 
   /**
    * Get application cache entries
@@ -554,7 +542,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to controller
    * @return list of cache elements
    */
-  public native Object getAppCache(long ref);
+  public Object getAppCache(long ref);
 
   /**
    * Execute SQL script
@@ -565,7 +553,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param arguments - array of arguments for sql query, they should match ? in it
    * @return result of query execution
    */
-  public native Object executeSQL(long ref, long dbref, String query, Object[] arguments);
+  public Object executeSQL(long ref, long dbref, String query, Object[] arguments);
 
   /**
    * Open database
@@ -577,14 +565,14 @@ public class WebKitJNI implements WebKitInterface {
    * @param ref - reference to controller
    * @return reference to opened database
    */
-  public native long openDatabase(long ref, String name, String version, String displayName, long size);
+  public long openDatabase(long ref, String name, String version, String displayName, long size);
 
   /**
    * Close database
    *
    * @param ref - reference to controller
    */
-  public native void closeDatabase(long ref);
+  public void closeDatabase(long ref);
 
   /**
    * Get number of entries in DOM storage
@@ -593,7 +581,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param sesson - true for session storage, false for local storage
    * @return numner of items in a session or local storage, -1 in case of error
    */
-  public native long storageLength(long ref, boolean session);
+  public long storageLength(long ref, boolean session);
 
   /**
    * Clear DOM storage
@@ -602,7 +590,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param sesson - true for session storage, false for local storage
    * @return true on success, false otherwise
    */
-  public native boolean storageClear(long ref, boolean session);
+  public boolean storageClear(long ref, boolean session);
 
   /**
    * Get DOM storage key by index
@@ -612,7 +600,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param idx - key index
    * @return key name
    */
-  public native String storageKey(long ref, boolean session, long idx);
+  public String storageKey(long ref, boolean session, long idx);
 
   /**
    * Get DOM storage value by key
@@ -622,7 +610,7 @@ public class WebKitJNI implements WebKitInterface {
    * @param key - key name
    * @return value for a given key
    */
-  public native String storageGetValue(long ref, boolean session, String key);
+  public String storageGetValue(long ref, boolean session, String key);
 
   /**
    * Set DOM storage value
@@ -633,9 +621,5 @@ public class WebKitJNI implements WebKitInterface {
    * @param value - value to set. If null, key is removed from a storage
    * @return value for a given key
    */
-  public native Object storageSetValue(long ref, boolean session, String key, String value);
-
-  static {
-    System.loadLibrary("hlwk");
-  }
+  public Object storageSetValue(long ref, boolean session, String key, String value);
 }
