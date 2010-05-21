@@ -548,7 +548,7 @@ JSC::JSValue parseArgument(JNIEnv* env, WebKitDriver* drv, jobject argument) {
     return result;
 }
 
-JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(JNIEnv *env, jobject obj, jlong ref, jobjectArray argv) {
+JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(JNIEnv *env, jobject obj, jobject driver, jlong ref, jobjectArray argv) {
     using namespace JSC;
     WebKitDriver *drv = *(WebKitDriver**)&ref;
     ScriptController *proxy;
@@ -596,7 +596,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(J
     // cycle is used for cycle detection, currently it doesn't do much since
     // we don't have such structures, but we could meet them in future
     JSC::JSObject* cycle = NULL;
-    return getObjectFromValue(env, obj, state, jsValue, set, &cycle);
+    return getObjectFromValue(env, driver, state, jsValue, set, &cycle);
 }
 
 
