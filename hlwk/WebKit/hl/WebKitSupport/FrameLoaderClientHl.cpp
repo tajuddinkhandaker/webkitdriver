@@ -43,6 +43,7 @@
 #include "HTMLNames.h"
 #include "HTMLFormElement.h"
 #include "HTMLFrameOwnerElement.h"
+#include "NetworkStateNotifier.h"
 #include "NotImplemented.h"
 #include "Page.h"
 #include "PlatformString.h"
@@ -728,8 +729,9 @@ void FrameLoaderClientHl::dispatchDecidePolicyForMIMEType(FramePolicyFunction fu
 {
     if (!m_webFrame)
         return;
-    
-    (m_frame->loader()->policyChecker()->*function)(PolicyUse);
+
+    PolicyAction action = networkStateNotifier().onLine()? PolicyUse : PolicyIgnore;
+    (m_frame->loader()->policyChecker()->*function)(action);
 }
 
 void FrameLoaderClientHl::dispatchDecidePolicyForNewWindowAction(FramePolicyFunction function, const NavigationAction&, const ResourceRequest& request, PassRefPtr<FormState>, const String& targetName)
