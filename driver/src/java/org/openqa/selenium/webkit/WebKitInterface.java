@@ -443,7 +443,7 @@ public interface WebKitInterface {
    * @param script - Java Script to evaluate
    * @return reference on JS Value
    */
-  public Object evaluateJS (long ref, Object[] arguments);
+  public Object evaluateJS (Object driver, long ref, Object[] arguments);
 
   /**
    * Check if element is stale

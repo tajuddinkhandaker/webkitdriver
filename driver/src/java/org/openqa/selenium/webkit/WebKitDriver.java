@@ -305,7 +305,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       for (Object obj : args)
         scriptArgs.add(parseArgument(obj));
     scriptArgs.add(script);
-    Object result = jni.evaluateJS(controller, scriptArgs.toArray());
+    Object result = jni.evaluateJS(this, controller, scriptArgs.toArray());
     if (result instanceof Exception) throw new WebDriverException();
     return result;
   }
@@ -360,11 +360,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
 
   public boolean isJavascriptEnabled() {
-    return jni().isJavascriptEnabled(controller);
+    return jni.isJavascriptEnabled(controller);
   }
 
   public void setJavascriptEnabled(boolean enableJavascript) {
-    jni().setJavascriptEnabled(controller, enableJavascript);
+    jni.setJavascriptEnabled(controller, enableJavascript);
   }
 
   public ResultSet executeSQL(String db, String query, Object... args) {    
@@ -877,7 +877,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public <X> X getScreenshotAs(OutputType<X> target) {
-      String dump = jni().getDOMDump(controller);
+      String dump = jni.getDOMDump(controller);
       String base64str = new Base64Encoder().encode(dump.getBytes());
       return target.convertFromBase64Png(base64str);
   }
