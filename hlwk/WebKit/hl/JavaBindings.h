@@ -17,7 +17,7 @@ extern "C" {
 
     JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_isJavascriptEnabled(JNIEnv *env, jobject obj, jlong ref);
     JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setJavascriptEnabled(JNIEnv *env, jobject obj, jlong ref, jboolean enable);
-    JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(JNIEnv *env, jobject obj, jlong ref, jobjectArray arguments);
+    JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(JNIEnv *env, jobject obj, jobject driver, jlong ref, jobjectArray arguments);
 
     //Document
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementById
