@@ -54,6 +54,8 @@ import org.openqa.selenium.webkit.WebKitWebElement;
 import org.openqa.selenium.webkit.WebKitSerializer;
 import org.openqa.selenium.webkit.WebKitJNI;
 
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -63,8 +65,36 @@ import java.nio.ByteBuffer;
 public class WebKitWrapper {
     public static void main(String[] args) {
         try {
+
+            /* WebKitWrapper communicates with proxy using stdin/stdout. However, 
+             * WebKit code can contain debug output to stdout, which can interfere this 
+             * communication. To avoid this, stdin and stdout should be duplicated and
+             * then reopened to another file.
+            */
+            //String redirectTo = "/dev/tty";
+            String redirectTo = "/tmp/children.out";
+            int next;
+            /* Get next available file descriptor */
+            next = WebKitJNI.getInstance().getAvailableFD();
+            /* Create new output stream. In UNIX we can be sure it will have next available
+             * file descriptor. */
+            DataOutputStream out = new DataOutputStream(new FileOutputStream("/dev/null"));
+            /* Dupclicate stdout descriptor to the new one and reopen stdin to specified
+             *  file */
+            WebKitJNI.getInstance().reassignFD(1, next, redirectTo);
+
+            next = WebKitJNI.getInstance().getAvailableFD();
+            DataOutputStream err = new DataOutputStream(new FileOutputStream("/dev/null"));
+            WebKitJNI.getInstance().reassignFD(2, next, redirectTo);
+
             DataInputStream in = new DataInputStream(System.in);
+            /*
             DataOutputStream out = new DataOutputStream(System.out);
+            */
+            System.setOut(new PrintStream(new FileOutputStream(redirectTo, true)));
+            System.setErr(new PrintStream(new FileOutputStream(redirectTo + ".err", true)));
+            //System.setErr(System.out);
+
             WebKitSerializer serializer = new WebKitSerializer();
             while (true) {
                 int len = in.readInt();
@@ -79,8 +109,9 @@ public class WebKitWrapper {
                 out.write(bb.array(), 0, bb.position());
                 out.flush();
             }
+        } catch (EOFException e) {
         } catch (IOException e) {
-            System.out.println("Wrapper finished due to IO error");
+            System.out.println("Wrapper finished: " + e.toString());
         }
     }
 }

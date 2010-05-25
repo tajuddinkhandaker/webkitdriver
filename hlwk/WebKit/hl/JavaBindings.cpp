@@ -105,6 +105,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
 
 static   jfieldID    g_nativeClass;
 using namespace WebCore;
@@ -1895,5 +1896,20 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageSetVa
             return env->NewString(currentValue.characters(),currentValue.length());
     }
     return 0;
+}
+
+JNIEXPORT jint JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAvailableFD(JNIEnv *env, jobject obj) {
+    int f = open("/dev/null", O_WRONLY);
+    if (f >= 0)
+        close(f);
+    return f;
+}
+
+JNIEXPORT jint JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_reassignFD(JNIEnv *env, jobject obj, jint fd1, jint fd2, jstring fname) {
+    if (dup2(fd1, fd2) >= 0) {
+        close(fd1);
+        return open(env->GetStringUTFChars(fname, NULL), O_WRONLY | O_CREAT, 0600);
+    }
+    return -1;
 }
 
