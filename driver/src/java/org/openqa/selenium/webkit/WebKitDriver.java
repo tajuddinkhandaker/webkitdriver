@@ -85,6 +85,8 @@ import java.lang.ProcessBuilder;
 import java.io.IOException;
 import java.io.DataOutputStream;
 import java.io.DataInputStream;
+import java.lang.IllegalThreadStateException;
+
 
 public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecutor,
         FindsById, FindsByLinkText, FindsByXPath, FindsByName, FindsByTagName,
@@ -107,11 +109,13 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     private Process wrapper;
     private DataOutputStream out;
     private DataInputStream in;
+    private boolean isRunning;
 
     public Forwarder() {
         ProcessBuilder pb = new ProcessBuilder(System.getProperty("java.home") +"/bin/java", "-classpath", System.getProperty("java.class.path") , "org.openqa.selenium.webkit.WebKitWrapper");
         try {
             wrapper = pb.start();
+            isRunning = true;
             out = new DataOutputStream(wrapper.getOutputStream());
             in = new DataInputStream(wrapper.getInputStream());
         } catch (IOException e) {
@@ -121,6 +125,9 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public Object invoke(Object proxy, Method method, Object[] args) 
     {
+        if (!isRunning) {
+           throw new WebDriverException("Child process is not running");
+        }
         try {
             /* Serialize and send request to remove proces */
             ByteBuffer bb = WebKitSerializer.putMethodIntoStream(method, args);
@@ -136,8 +143,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
                 throw new WebDriverException("Communication error");
             return WebKitSerializer.deserialize(buffer);
         } catch (Exception e) {
-            throw new WebDriverException("unexpected invocation exception: " +
-                       e.getMessage());
+            try {
+                wrapper.exitValue();
+                isRunning = false;
+            } catch(IllegalThreadStateException ie) {};
+            throw new WebDriverException("unexpected invocation exception on method " + method.getName() + ": " + e.getMessage());
         }
     }
   }
