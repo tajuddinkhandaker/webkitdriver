@@ -635,6 +635,9 @@ public class WebKitJNI implements WebKitInterface {
    */
   public native Object storageSetValue(long ref, boolean session, String key, String value);
 
+  public native int getAvailableFD();
+  public native int reassignFD(int fd1, int fd2, String fileName);
+
   static {
     System.loadLibrary("hlwk");
   }
