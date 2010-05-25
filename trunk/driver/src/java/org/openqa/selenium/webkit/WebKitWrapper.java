@@ -102,9 +102,19 @@ public class WebKitWrapper {
                 int c = in.read(buffer.array());
                 if (c != len)
                     break;
-                Object res = WebKitSerializer.invokeMethodFromStream(buffer);
+                Object res;
+                try {
+                    res = WebKitSerializer.invokeMethodFromStream(buffer);
+                } catch (Exception e) {
+                    res = e;
+                }
                 ByteBuffer bb = ByteBuffer.allocate(30000);
-                WebKitSerializer.serialize(bb, res);
+                try {
+                    WebKitSerializer.serialize(bb, res);
+                } catch (Exception e) {
+                    res = 0;
+                    WebKitSerializer.serialize(bb, res);
+                }
                 out.writeInt(bb.position());
                 out.write(bb.array(), 0, bb.position());
                 out.flush();
