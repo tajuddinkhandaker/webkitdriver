@@ -1,28 +1,15 @@
-#summary One-sentence summary of this page.
+#summary This page outlines code structure and design guidelines of WebKitDriver
 
 = Introduction =
 
 Add your content here.
 
-
-= Details =
-
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other w
-
-WebKitDriver Programmer Guide
-Introduction
-
-WebKit
-Code structure
-
+= WebKit =
+== Code structure ==
 WebKit code is divided into several directories, but in general it can be divided into tree big subprojects, which are tightly coupled with each other:
-JavaScriptCore
-WebCore
-WebKit
-
+  * _JavaScriptCore_
+  * _WebCore_
+  * _WebKit_
 
 JavaScriptCode contains source code of javascript engine used in WebKit by default (it can use other JS engines, e.g. V8 in case of Chome browser). Desptite its name, it also contain a number of utility classes and functions used all across WebKit source code, as well as essential sustem-specific functions like thread creation and synchronization, access to system time.
 
@@ -32,62 +19,67 @@ WebKit contains source code specific to each port - Qt, Wx, Gtk, Chrome. It prov
 
 WebKit does not provide any generic library. Instead, several ports exists, which produce port-specific dynamic libraries linking together generic WebKit code and port-specific code. There is no clear distinction between generic and port-specific code - any port can redefine almost any generic functionality when needed. This leads to situation when header files are filled with lots of port-specific defines. Except this, the code has clear structure - all port-specific code is kept in port-specific directories.
 
-Data types
-- String, PlatformString, StringImpl, AtomicString
-- RefPtr
-- Hash, Vector
-Headless WebKit
+== Data types ==
+  * String, PlatformString, StringImpl, AtomicString
+  * RefPtr
+  * Hash, Vector
 
-Code structure
+= Headless WebKit =
+
+== Code structure ==
 
 Code structure of headless port resembles code structure of other exsistings WebKit ports such as Gtk, Qt or Wx. Headless port was derived from Wx implementation and its code structure is almost completely matches code structure of Wx port sources. In general, there is a number of directories containing files specific for headless port, as well as modifications of common header files selected with C preprocessor.
 
 Headless port does not implement actual page rendering and integration with windowing system, thus lots of the classes and methods it provides are just empty stubs to comply general WebKit interfaces.
 
 Headless specific files live in the following directories:
-JavaScriptCore/wtf/hl - stubs for threading primitives
-WebCore/platform/hl - general functions
-WebCore/platform/graphics/hl - code related to drawing, widget and font rendering
-WebCore/platform/image-decoders/hl - stubs for unused but required decoding functions
-WebCore/platform/network/hl - implementation of cookie jar and local modifications of files originating from WebCore/platform/network/curl
+  * _JavaScriptCore/wtf/hl_ - stubs for threading primitives
+  * _WebCore/platform/hl_ - general functions
+  * _WebCore/platform/graphics/hl_ - code related to drawing, widget and font rendering
+  * _WebCore/platform/image-decoders/hl_ - stubs for unused but required decoding functions
+  * _WebCore/platform/network/hl_ - implementation of cookie jar and local modifications of files originating from 
+  * _WebCore/platform/network/curl_
 
+== Modifications of original WebKit source code ==
 
-Modifications of original WebKit source code
-Handling scheduled events
-
+== Handling scheduled events ==
 A lot of WebKit functionality relies on scheduled events, which should be called from main thread event loop. The top-level interface for scheduling functions is WebCore::Timer class. Timer “fire“ method is invoked after specified interval of time. It is a common practice to create timers with zero interval to invoke a function as soon as possible from main event loop.
 
 All windowing systems or libraries provide main event loop concept, however this is not true for headless port. Headless port is not event-driven, so it does not need endless event loop. Instead, headless port provide utility functions to process scheduled events when needed. Unlike real event loop, these functions should be invoked explicitly by programmer.
 
-bool Headless::processTimer() process oldest scheduled timer if any. If timer interval is elapsed, it is fired immediately, otherwise execution is blocked till it is elapsed. The function returns true if timer was fired, false if there are no scheduled timers remain. Note that scheduled function can spawn another scheduled function.    
+`bool Headless::processTimer()` process oldest scheduled timer if any. If timer interval is elapsed, it is fired immediately, otherwise execution is blocked till it is elapsed. The function returns true if timer was fired, false if there are no scheduled timers remain. Note that scheduled function can spawn another scheduled function.    
 
-bool Headless::processExpiredTimers() is a helper function which invokes all scheduled timers with elapsed intervals. Its semantics can be described as “process all scheduled events which will not block execution of the current function“. 
+`bool Headless::processExpiredTimers()` is a helper function which invokes all scheduled timers with elapsed intervals. Its semantics can be described as “process all scheduled events which will not block execution of the current function“. 
 
-These high-level functions depends on functionality provided by very simple functions from WebCore/platform/SharedTimerHl.cpp, which are used as 
-Threads synchronization
+These high-level functions depends on functionality provided by very simple functions from _WebCore/platform/SharedTimerHl.cpp_  which are used as 
 
-While most of the web page rendering functionality is done within a single thread, there is number of exceptions. Such features as database support or workers spawn separate threads which require synchronization with main thread. Extra threads can schedule invocation of a function in main thread. Main thread should call WTF::dispatchFunctionsFromMainThread() function to invoke such scheduled functions. Since headless port does not have native event loop, this functions is invoked each time processTimer or processExpiredTimers functions are invoked to provide transparent thread synchronization.
+== Threads synchronization ==
+While most of the web page rendering functionality is done within a single thread, there is number of exceptions. Such features as database support or workers spawn separate threads which require synchronization with main thread. Extra threads can schedule invocation of a function in main thread. Main thread should call `WTF::dispatchFunctionsFromMainThread()` function to invoke such scheduled functions. Since headless port does not have native event loop, this functions is invoked each time processTimer or processExpiredTimers functions are invoked to provide transparent thread synchronization.
 
+== Keyboard events ==
+== Fonts handling ==
+== Rendering ==
 
-Keyboard events
-Fonts handling
-Rendering
-WebKitDriver
+= WebKitDriver =
 
 WebKitDriver is one of the drivers of WebDriver project, built on top of headless webkit
-Code Structure
-Events handling
 
-Dependencies
+== Code Structure ==
+== Events handling ==
+== Multiple processes and threads ==
+
+== Dependencies ==
 
 Java, JNI
-Limitations
 
-- Database, application cache and cookie storage is shared between all instances of WebKitDriver, living within a process.
-- CSS offsets are rounded to integers
-- DesignMode is not properly supported
-Extending WebKitDriver
+== Limitations ==
 
-Adding new keyboard shortcuts
+  * Database, application cache and cookie storage is shared between all instances of WebKitDriver, living within a process.
+  * CSS offsets are rounded to integers
+  * DesignMode is not properly supported
 
+== Extending WebKitDriver ==
+
+=== Adding new keyboard shortcuts ===
+TODO
  
