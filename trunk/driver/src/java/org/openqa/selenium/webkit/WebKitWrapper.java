@@ -34,32 +34,11 @@ limitations under the License.
  */
 package org.openqa.selenium.webkit;
 
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.HashSet;
-import java.lang.Thread;
-
-import org.openqa.selenium.By;
-import org.openqa.selenium.Cookie;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.html5.*;
-import org.openqa.selenium.RenderedWebElement;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.webkit.WebKitDriver;
-import org.openqa.selenium.webkit.WebKitWebElement;
 import org.openqa.selenium.webkit.WebKitSerializer;
-import org.openqa.selenium.webkit.WebKitJNI;
 
-import java.io.FileOutputStream;
-import java.io.PrintStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.net.Socket;
@@ -82,12 +61,14 @@ public class WebKitWrapper {
                 int c = in.read(buffer.array());
                 if (c != len)
                     break;
+
                 Object res;
                 try {
                     res = WebKitSerializer.invokeMethodFromStream(buffer);
                 } catch (Exception e) {
                     res = e;
                 }
+
                 ByteBuffer bb = ByteBuffer.allocate(30000);
                 try {
                     WebKitSerializer.serialize(bb, res);
@@ -99,7 +80,6 @@ public class WebKitWrapper {
                 out.write(bb.array(), 0, bb.position());
                 out.flush();
             }
-        } catch (EOFException e) {
         } catch (IOException e) {
             System.out.println("Wrapper finished: " + e.getMessage());
         }
