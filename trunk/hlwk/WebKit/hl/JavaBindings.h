@@ -115,7 +115,5 @@ extern "C" {
     JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageKey(JNIEnv *env, jobject obj, jlong ref, jboolean session, jlong idx);
     JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageGetValue(JNIEnv *env, jobject obj, jlong ref, jboolean session, jstring key);
     JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageSetValue(JNIEnv *env, jobject obj, jlong ref, jboolean session, jstring key, jstring value);
-    JNIEXPORT jint JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAvailableFD(JNIEnv *env, jobject obj);
-    JNIEXPORT jint JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_reassignFD(JNIEnv *env, jobject obj, jint fd1, jint fd2 ,jstring fname);
 }
 #endif

@@ -67,6 +67,8 @@ import java.net.ConnectException;
 import java.net.URL;
 import java.net.MalformedURLException;
 import java.net.UnknownHostException;
+import java.net.Socket;
+import java.net.ServerSocket;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -85,6 +87,8 @@ import java.lang.ProcessBuilder;
 import java.io.IOException;
 import java.io.DataOutputStream;
 import java.io.DataInputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.lang.IllegalThreadStateException;
 
 
@@ -98,8 +102,43 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   private Speed speed = Speed.FAST;
   private WebKitAlert currentAlert;
   private long implicitWait = 0;
+  private String userAgent;
+  private Pipe pipe;
 
-  /** 
+
+  /**
+   * Pipe class provides communication between java processes via TCP sockets.
+   */
+  private class Pipe {
+    private int serverPort;
+    private ServerSocket serverSocket;
+
+    public Pipe() {
+      try {
+        serverSocket = new ServerSocket(0);
+        serverPort = serverSocket.getLocalPort();
+      } catch (IOException e) {
+        throw new WebDriverException("WebKitDriver server socket creation error: " +
+            e.getMessage());
+      }
+
+    }
+
+    public int getServerPort() {
+      return serverPort;
+    }
+
+    public Socket connect() {
+      try {
+        return serverSocket.accept();
+      } catch (IOException e) {
+        throw new WebDriverException("WebKitDriver client socket creation error:" +
+            e.getMessage());
+      }
+    }
+  }
+
+  /**
    * Forwarder class implements InvocationHandler interface and
    * used as a dymanic proxy for invoking JNI methods in a separate
    * java process hosting headless WebKit library.
@@ -107,38 +146,56 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   private class Forwarder implements InvocationHandler
   {
     private Process wrapper;
-    private DataOutputStream out;
-    private DataInputStream in;
+    private BufferedReader in;
+    private BufferedReader err;
+    private Socket dataSocket;
+    private DataOutputStream dataOut;
+    private DataInputStream dataIn;
     private boolean isRunning;
 
     public Forwarder() {
-        ProcessBuilder pb = new ProcessBuilder(System.getProperty("java.home") +"/bin/java", "-classpath", System.getProperty("java.class.path") , "org.openqa.selenium.webkit.WebKitWrapper");
+        ProcessBuilder pb = new ProcessBuilder(System.getProperty("java.home") +"/bin/java", "-classpath", System.getProperty("java.class.path") ,
+            "org.openqa.selenium.webkit.WebKitWrapper", Integer.toString(pipe.getServerPort()));
         try {
             wrapper = pb.start();
+            dataSocket = pipe.connect();
+            dataOut = new DataOutputStream(dataSocket.getOutputStream());
+            dataIn  = new DataInputStream(dataSocket.getInputStream());
+            in  = new BufferedReader(new InputStreamReader(wrapper.getInputStream()));
+            err = new BufferedReader(new InputStreamReader(wrapper.getErrorStream()));
             isRunning = true;
-            out = new DataOutputStream(wrapper.getOutputStream());
-            in = new DataInputStream(wrapper.getInputStream());
         } catch (IOException e) {
             throw new WebDriverException("WebKitDriver wrapper can not be spawned");
         }
     }
 
-    public Object invoke(Object proxy, Method method, Object[] args) 
+    public Object invoke(Object proxy, Method method, Object[] args)
     {
         if (!isRunning) {
            throw new WebDriverException("Child process is not running");
         }
         try {
-            /* Serialize and send request to remove proces */
-            ByteBuffer bb = WebKitSerializer.putMethodIntoStream(method, args);
-            out.writeInt(bb.position());
-            out.write(bb.array(), 0, bb.position());
-            out.flush();
+            // Serialize and send request to remove process
+            ByteBuffer bb = WebKitSerializer.putMethodIntoStream(method, args,
+                userAgent, controller, default_controller);
+            dataOut.writeInt(bb.position());
+            dataOut.write(bb.array(), 0, bb.position());
+            dataOut.flush();
 
-            /* Receive responce and deserialize it */
-            int len = in.readInt();
+            // Child's stderr printing
+            while (err.ready()) {
+                System.err.println("Child's err: " + err.readLine());
+            }
+
+            // Child's stdout printing
+            while (in.ready()) {
+                System.out.println("Child's out: " + in.readLine());
+            }
+
+            // Receive response and deserialize it
+            int len = dataIn.readInt();
             ByteBuffer buffer = ByteBuffer.allocate(len);
-            int c = in.read(buffer.array());
+            int c = dataIn.read(buffer.array());
             if (c != len)
                 throw new WebDriverException("Communication error");
             return WebKitSerializer.deserialize(buffer);
@@ -147,7 +204,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
                 wrapper.exitValue();
                 isRunning = false;
             } catch(IllegalThreadStateException ie) {};
-            throw new WebDriverException("unexpected invocation exception on method " + method.getName() + ": " + e.getMessage());
+            throw new WebDriverException("Unexpected invocation exception on method " + method.getName() + ": " + e.getMessage());
         }
     }
   }
@@ -159,6 +216,9 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   public WebKitDriver(String userAgent) {
     if (!WebKitJNI.isMainThread())
     {
+        this.userAgent = userAgent;
+        if (pipe == null)
+            pipe = new Pipe();
         Forwarder handler = new Forwarder();
         jni = (WebKitInterface)Proxy.newProxyInstance(
                             WebKitInterface.class.getClassLoader(),
@@ -175,6 +235,14 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
   public WebKitInterface jni() {
     return jni;
+  }
+
+  public long getController() {
+    return controller;
+  }
+
+  public long getDefaultController() {
+    return default_controller;
   }
 
   private WebKitWebElement rootNode()
@@ -377,7 +445,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     jni.setJavascriptEnabled(controller, enableJavascript);
   }
 
-  public ResultSet executeSQL(String db, String query, Object... args) {    
+  public ResultSet executeSQL(String db, String query, Object... args) {
     // Due to interface limitations we have to parse db string since it contains
     // all information to open DB
     String []temp = db.split("^\\s*'");
@@ -391,7 +459,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     // to do the parsing part
     Object len = executeScript("return "+dbparams[3]+";");
     if (!(len instanceof Long)) throw new WebDriverException ("Incorrect DB size");
-    long dbRef = jni.openDatabase(controller, dbparams[0], dbparams[1], dbparams[2], (Long)len);    
+    long dbRef = jni.openDatabase(controller, dbparams[0], dbparams[1], dbparams[2], (Long)len);
     Object result = jni.executeSQL(controller, dbRef, query, args);
     jni.closeDatabase(dbRef);
     if (result instanceof ResultSet) return (ResultSet)result;
@@ -400,12 +468,12 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     throw new WebDriverException("Unknown result type");
   }
 
-  public List<AppCacheEntry> getAppCache() 
+  public List<AppCacheEntry> getAppCache()
   {
     return (List<AppCacheEntry>)jni.getAppCache(controller);
   }
 
-  public AppCacheStatus status() 
+  public AppCacheStatus status()
   {
     int status = jni.getAppCacheStatus(controller);
     if (status < 0) {
@@ -786,7 +854,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
         return this;
       }
   }
-  
+
   public class Storage implements Map<String,Object> {
     private boolean isSession;
 
@@ -794,7 +862,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       this.isSession = isSession;
     }
 
-    public void clear() 
+    public void clear()
     {
       jni.storageClear(controller, isSession);
     }
@@ -841,7 +909,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public Object put(String key, Object value)
     {
-      return jni.storageSetValue(controller, isSession, 
+      return jni.storageSetValue(controller, isSession,
                 key, value.toString());
     }
 
@@ -869,12 +937,12 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     }
   }
 
-  public Storage getSessionStorage() 
+  public Storage getSessionStorage()
   {
     return new Storage(true);
   }
 
-  public Storage getLocalStorage() 
+  public Storage getLocalStorage()
   {
     return new Storage(false);
   }
