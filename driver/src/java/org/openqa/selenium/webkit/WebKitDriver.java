@@ -102,7 +102,6 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   private Speed speed = Speed.FAST;
   private WebKitAlert currentAlert;
   private long implicitWait = 0;
-  private String userAgent;
   private Pipe pipe;
 
 
@@ -176,8 +175,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
         }
         try {
             // Serialize and send request to remove process
-            ByteBuffer bb = WebKitSerializer.putMethodIntoStream(method, args,
-                userAgent, controller, default_controller);
+            ByteBuffer bb = WebKitSerializer.putMethodIntoStream(method, args);
             dataOut.writeInt(bb.position());
             dataOut.write(bb.array(), 0, bb.position());
             dataOut.flush();
@@ -216,7 +214,6 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   public WebKitDriver(String userAgent) {
     if (!WebKitJNI.isMainThread())
     {
-        this.userAgent = userAgent;
         if (pipe == null)
             pipe = new Pipe();
         Forwarder handler = new Forwarder();

@@ -37,9 +37,6 @@ import org.openqa.selenium.html5.AppCacheEntry;
 import org.openqa.selenium.html5.AppCacheType;
 
 public class WebKitSerializer {
-  private static String userAgent;
-  private static long controller;
-  private static long default_controller;
 
   private static final byte nullType          = 0;
   private static final byte longType          = 1;
@@ -57,8 +54,6 @@ public class WebKitSerializer {
   private static final byte locationType      = 13;
   private static final byte appCacheEntryType = 14;
   private static final byte webKitDriverType  = 15;
-  private static final byte webKitControllerType        = 16;
-  private static final byte webKitDefaultControllerType = 17;
 
   /**
    * Serialize method to stream for remote call
@@ -67,12 +62,8 @@ public class WebKitSerializer {
    * @param args Array of arguments for the method
    * @return ByteBuffer with serialized method
    */
-  public static ByteBuffer putMethodIntoStream(Method method, Object args[],
-    String userAgent, long controller, long default_controller) throws WebDriverException {
+  public static ByteBuffer putMethodIntoStream(Method method, Object args[]) throws WebDriverException {
     ByteBuffer stream = ByteBuffer.allocate(30000);
-    WebKitSerializer.userAgent = userAgent;
-    WebKitSerializer.controller = controller;
-    WebKitSerializer.default_controller = default_controller;
     serialize(stream, method);
     for (int i = 0; i < method.getParameterTypes().length; i++) {
         serialize(stream, args[i]);
@@ -118,16 +109,6 @@ public class WebKitSerializer {
       return;
     }
     if (object instanceof Long) {
-      if ((Long)object == controller) {
-        stream.put(webKitControllerType);
-        stream.putInt(0);
-        return;
-      }
-      if ((Long)object == default_controller) {
-        stream.put(webKitDefaultControllerType);
-        stream.putInt(0);
-        return;
-      }
       stream.put(longType);
       stream.putInt(-1);
       stream.putLong((Long)object);
@@ -249,7 +230,7 @@ public class WebKitSerializer {
     if (object instanceof WebKitDriver) {
       stream.put(webKitDriverType);
       stream.putInt(-1);
-      serialize(stream, userAgent);
+      stream.putLong(((WebKitDriver)object).getController());
       return;
     }
     throw new WebDriverException("Unknow data type during serialization: "
@@ -266,8 +247,6 @@ public class WebKitSerializer {
     byte type = stream.get();
     int size = stream.getInt();
     switch (type) {
-      case webKitControllerType:
-        return controller;
       case nullType:
         return null;
       case longType:
@@ -367,15 +346,8 @@ public class WebKitSerializer {
         String mimeType = (String)deserialize(stream);
         return new AppCacheEntry(aACType[i], url, mimeType);
       }
-      case webKitDefaultControllerType:
-        return default_controller;
-      case webKitDriverType: {
-        String userAgent = (String)deserialize(stream);
-        WebKitDriver wd = new WebKitDriver(userAgent);
-        controller = wd.getController();
-        default_controller = wd.getDefaultController();
-        return wd;
-      }
+      case webKitDriverType:
+        return new WebKitDriver(stream.getLong());
       default:
         throw new WebDriverException("Unknown data type during deserialization: " + type);
     }
