@@ -489,10 +489,10 @@ public class WebKitJNI implements WebKitInterface {
    * @return Alert text or null
    */
   public native String getAlertText(long ref, boolean clr);
-  
+
   /**
    * Get Geolocation
-   * 
+   *
    * @param ref - reference to WebKitDriverObject
    * @return return object GeoLocation
    */
@@ -500,7 +500,7 @@ public class WebKitJNI implements WebKitInterface {
 
   /**
    * Helper function set new Geolocation in Client Controller
-   * 
+   *
    * @param ref - reference to WebKitDriverObject
    * @param location - new Geolocation
    * @return return object GeoLocation
@@ -523,7 +523,7 @@ public class WebKitJNI implements WebKitInterface {
   public native long setOnline(boolean online);
 
   /**
-   * Check is media/codec supported for HTMLMediaElement 
+   * Check is media/codec supported for HTMLMediaElement
    *
    * @param ref - reference to HTMLMediaElement
    * @param contentType - string with content media type and codec info
@@ -634,9 +634,6 @@ public class WebKitJNI implements WebKitInterface {
    * @return value for a given key
    */
   public native Object storageSetValue(long ref, boolean session, String key, String value);
-
-  public native int getAvailableFD();
-  public native int reassignFD(int fd1, int fd2, String fileName);
 
   static {
     System.loadLibrary("hlwk");

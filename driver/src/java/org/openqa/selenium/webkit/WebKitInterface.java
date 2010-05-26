@@ -477,10 +477,10 @@ public interface WebKitInterface {
    * @return Alert text or null
    */
   public String getAlertText(long ref, boolean clr);
-  
+
   /**
    * Get Geolocation
-   * 
+   *
    * @param ref - reference to WebKitDriverObject
    * @return return object GeoLocation
    */
@@ -488,7 +488,7 @@ public interface WebKitInterface {
 
   /**
    * Helper function set new Geolocation in Client Controller
-   * 
+   *
    * @param ref - reference to WebKitDriverObject
    * @param location - new Geolocation
    * @return return object GeoLocation
@@ -511,7 +511,7 @@ public interface WebKitInterface {
   public long setOnline(boolean online);
 
   /**
-   * Check is media/codec supported for HTMLMediaElement 
+   * Check is media/codec supported for HTMLMediaElement
    *
    * @param ref - reference to HTMLMediaElement
    * @param contentType - string with content media type and codec info

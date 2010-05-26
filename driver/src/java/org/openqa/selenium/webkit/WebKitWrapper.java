@@ -45,6 +45,7 @@ import java.lang.Thread;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.html5.*;
 import org.openqa.selenium.RenderedWebElement;
@@ -61,41 +62,20 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.net.Socket;
 
 public class WebKitWrapper {
     public static void main(String[] args) {
+        int port;
         try {
-
-            /* WebKitWrapper communicates with proxy using stdin/stdout. However, 
-             * WebKit code can contain debug output to stdout, which can interfere this 
-             * communication. To avoid this, stdin and stdout should be duplicated and
-             * then reopened to another file.
-            */
-            //String redirectTo = "/dev/tty";
-            String redirectTo = "/tmp/children.out";
-            int next;
-            /* Get next available file descriptor */
-            next = WebKitJNI.getInstance().getAvailableFD();
-            /* Create new output stream. In UNIX we can be sure it will have next available
-             * file descriptor. */
-            DataOutputStream out = new DataOutputStream(new FileOutputStream("/dev/null"));
-            /* Dupclicate stdout descriptor to the new one and reopen stdin to specified
-             *  file */
-            WebKitJNI.getInstance().reassignFD(1, next, redirectTo);
-
-            next = WebKitJNI.getInstance().getAvailableFD();
-            DataOutputStream err = new DataOutputStream(new FileOutputStream("/dev/null"));
-            WebKitJNI.getInstance().reassignFD(2, next, redirectTo);
-
-            DataInputStream in = new DataInputStream(System.in);
-            /*
-            DataOutputStream out = new DataOutputStream(System.out);
-            */
-            System.setOut(new PrintStream(new FileOutputStream(redirectTo, true)));
-            System.setErr(new PrintStream(new FileOutputStream(redirectTo + ".err", true)));
-            //System.setErr(System.out);
-
-            WebKitSerializer serializer = new WebKitSerializer();
+            port = Integer.parseInt(args[0]);
+        } catch (NumberFormatException e) {
+            throw new WebDriverException("Invalid port number: " + args[0]);
+        }
+        try {
+            Socket dataSocket = new Socket("localhost", port);
+            DataOutputStream out = new DataOutputStream(dataSocket.getOutputStream());
+            DataInputStream in   = new DataInputStream(dataSocket.getInputStream());
             while (true) {
                 int len = in.readInt();
                 ByteBuffer buffer = ByteBuffer.allocate(len);
@@ -121,7 +101,7 @@ public class WebKitWrapper {
             }
         } catch (EOFException e) {
         } catch (IOException e) {
-            System.out.println("Wrapper finished: " + e.toString());
+            System.out.println("Wrapper finished: " + e.getMessage());
         }
     }
 }
