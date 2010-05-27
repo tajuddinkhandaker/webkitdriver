@@ -33,7 +33,6 @@ limitations under the License.
  *
  */
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,14 +48,17 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.webkit.WebKitDriver;
 import org.openqa.selenium.webkit.WebKitWebElement;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 public class Example  {
     public static void main(String[] args) {
         Example ex = new Example();
 //      ex.test0();
 //      ex.testJS();
 //      ex.testCookie();
-        ex.testGmail();
-        ex.testVisibility();
+//        ex.testGmail();
+//        ex.testVisibility();
+        ex.Google(null);
     }
 
     private void test0() {
@@ -241,12 +243,9 @@ public class Example  {
 
     private void printAllCookies(WebDriver wd){
         Set<Cookie> cookies = wd.manage().getCookies();
-        Iterator<Cookie> iter = cookies.iterator();
 
-        while (iter.hasNext()) {
-            Cookie c = iter.next();
+        for (Cookie c: cookies)
             printCookie(c);
-        }
     }
 
     private void testCookie() {
@@ -398,4 +397,27 @@ public class Example  {
         System.out.println(d1.getPageSource());
     }
 
+    private void Google(String userAgent) {
+      long timeInMillis = System.currentTimeMillis();
+      System.out.println("=> 0");
+      WebKitDriver driver = new WebKitDriver(userAgent);
+      // driver.manage().timeouts().implicitlyWait(1000, MILLISECONDS);
+      System.out.println("=> 1");
+      driver.get("http://google.com");
+      System.out.println("=> 2");
+      try { Thread.sleep(500); }
+      catch (InterruptedException ignore) {}
+      WebElement q = driver.findElement(By.name("q"));
+      System.out.println("=> 3");
+      q.sendKeys("London\n");
+      System.out.println("=> 4");
+      System.out.println("Found " + driver.findElements(By.tagName("a")).size());
+      System.out.println("=> 5");
+      for(WebElement e : driver.findElements(By.tagName("a"))) {
+          System.out.println("=> 6");
+          System.out.println("Link " + e.getText());
+      }
+      driver.quit();
+      System.out.println("Test took " + (System.currentTimeMillis() - timeInMillis));
+    }
 }
