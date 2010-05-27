@@ -65,6 +65,10 @@ While most of the web page rendering functionality is done within a single threa
 WebKitDriver is one of the drivers of WebDriver project, built on top of headless webkit
 
 == Code Structure ==
+WebKitDriver consists of Java part, C++ bindings implementing JNI interface and unit tests. Java part is located in
+_driver/java_ directory, tests can be found in _driver/test_. JNI bindings are kept separately in WebKit tree, the path is
+_hlwk/WebKit/hl_.
+
 == Events handling ==
 == Multiple processes and threads ==
 Current implementation of WebKit implies lots of functions can be called only from main thread. Though WebKit supports multiple threads, its threads have strict roles, e.g. SQL execution thread, WebWorker thread, etc. However, most of the rendering and html processing can be done only in main thread. To assure this, entry points have assertions checking they are invoked from main thread, and no synchronization primitives like mutexes or semaphores are used to protect access to global variables and objects. Besides that, WebKit uses several singleton objects, making it difficult to co-exist completely independent instances of WebKitDriver at same time.
