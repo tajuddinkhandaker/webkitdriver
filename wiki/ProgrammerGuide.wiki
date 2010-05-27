@@ -68,6 +68,18 @@ WebKitDriver is one of the drivers of WebDriver project, built on top of headles
 WebKitDriver consists of Java part, C++ bindings implementing JNI interface and unit tests. Java part is located in _driver/java_ directory, tests can be found in _driver/test_. JNI bindings are kept separately in WebKit tree, the path is
 _hlwk/WebKit/hl_.
 
+Java part consists of the following files:
+  * _WebKitDriver.java_ - implementation of WebDriver and related interfaces
+  * _WebKitWebElement.java_ - implementation of WebElement and related interfaces
+  * _WebKitInterface_ - interface describing methods which are invoked using JNI
+  * _WebKitJNI_ - class providing access to JNI methods
+  * _WebKitSerilze_ - implementation of serialization for inter-process communication
+  * _WebKitWrapper_ - implementation of child process wrapper
+
+C++ part consists of JNI bindings and helper functions for headless WebKit integration:
+  * JavaBindings.cpp - JNI bindings, contain most of WebDriver-specific logics
+  * WebKitDriver.cpp - high-level driver object 
+
 == Events handling ==
 == Multiple processes and threads ==
 Current implementation of WebKit implies lots of functions can be called only from main thread. Though WebKit supports multiple threads, its threads have strict roles, e.g. SQL execution thread, WebWorker thread, etc. However, most of the rendering and html processing can be done only in main thread. To assure this, entry points have assertions checking they are invoked from main thread, and no synchronization primitives like mutexes or semaphores are used to protect access to global variables and objects. Besides that, WebKit uses several singleton objects, making it difficult to co-exist completely independent instances of WebKitDriver at same time.
@@ -92,5 +104,14 @@ Java, JNI
 == Extending WebKitDriver ==
 
 === Adding new keyboard shortcuts ===
-TODO
- 
+WebKitDriver does not use system-specific events, and any keyboard shortcut which may be handled by operating system automatically (e.g. Control-C) require explicit support in WebKitDriver. The number of such shortcuts can be large and they can depend on operating system, thus only a limited set of most widel-used and important shortcuts is implemented right now.  However, new shortcut can be added quite easily thanks to WebKit internal editor implementation.
+
+The list of supported shortcuts is:
+  * *Ctrl-C* - copy selection to clipboard
+  * *Ctrl-V* - paste data from clipboard
+  * *Ctrl-X* - move selection to clipboard
+  * *Ctrl-A* - select all
+  * Shift + navigation keys - move cursor and modify selection 
+
+WebKit editor has a large list of available editing actions, which can be found in _WebCore/editing/EditorCommand.cpp_ file in WebKit source tree. Developer only need to map keyboard shortcut to 
+one of this actions. This can be done in `handleKeyboardEvent` method of `EditorClientHl` class, defined in_WebKit/hl/WebKitSupport/EditorClientHl.cpp_ file. This method analyses keyboard code and modifiers of keyboard event and invokes appropriate editor method.
