@@ -67,6 +67,14 @@ WebKitDriver is one of the drivers of WebDriver project, built on top of headles
 == Code Structure ==
 == Events handling ==
 == Multiple processes and threads ==
+Current implementation of WebKit implies lots of functions can be called only from main thread. Though WebKit supports multiple threads, its threads have strict roles, e.g. SQL execution thread, WebWorker thread, etc. However, most of the rendering and html processing can be done only in main thread. To assure this, entry points have assertions checking they are invoked from main thread, and no synchronization primitives like mutexes or semaphores are used to protect access to global variables and objects. Besides that, WebKit uses several singleton objects, making it difficult to co-exist completely independent instances of WebKitDriver at same time.
+
+To solve this limitation, WebKitDriver is able to spawn headless WebKit in a separate process when WebKitDriver object is created in a thread other than main. This approach solves all object access issues, however brings some delay due to need of object serialization and exchange between separate processes.
+
+WebKitDriver constructor checks, is current thread is main one, and spawns separate process and creates dynamic proxy object for `WebKitInterface` interface instead of direct access JNI functions. This proxy object uses custom `WebKitSerialize` class to serialize and de-serialize objects when passing to the spawned process via TCP socket.
+
+Spawned process is created using ProcessBuilder API. It is a very simple Java wrapper around headless webkit, which connects to TCP port of loopback interface, specified on command line, and then reads incoming data, deserializes it, invokes JNI method, serializes and sends response back. The wrapper is implemented in `WebKitWrapper` class.
+
 
 == Dependencies ==
 
