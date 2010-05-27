@@ -51,7 +51,7 @@ All windowing systems or libraries provide main event loop concept, however this
 
 `bool Headless::processExpiredTimers()` is a helper function which invokes all scheduled timers with elapsed intervals. Its semantics can be described as “process all scheduled events which will not block execution of the current function“. 
 
-These high-level functions depends on functionality provided by very simple functions from _WebCore/platform/SharedTimerHl.cpp_  which are used as [TODO: complete.]
+These high-level functions depends on functionality provided by very simple functions from _WebCore/platform/SharedTimerHl.cpp_  which are used as a backend by all timer classes. Headless SharedTimer implementation does not use any system-specific timer or scheduling mechanisms. Instead, it just handles variable for function pointer and time when it should be fired, leaving all handling logics to 'processTimer' function.
 
 == Threads synchronization ==
 While most of the web page rendering functionality is done within a single thread, there is number of exceptions. Such features as database support or workers spawn separate threads which require synchronization with main thread. Extra threads can schedule invocation of a function in main thread. Main thread should call `WTF::dispatchFunctionsFromMainThread()` function to invoke such scheduled functions. Since headless port does not have native event loop, this functions is invoked each time processTimer or processExpiredTimers functions are invoked to provide transparent thread synchronization.
