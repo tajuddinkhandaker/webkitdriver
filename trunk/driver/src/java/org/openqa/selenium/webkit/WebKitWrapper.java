@@ -52,7 +52,8 @@ public class WebKitWrapper {
             throw new WebDriverException("Invalid port number: " + args[0]);
         }
         try {
-            Socket dataSocket = new Socket("localhost", port);
+            Socket dataSocket = new Socket((String)null, port);
+            dataSocket.setTcpNoDelay(true);
             DataOutputStream out = new DataOutputStream(dataSocket.getOutputStream());
             DataInputStream in   = new DataInputStream(dataSocket.getInputStream());
             while (true) {

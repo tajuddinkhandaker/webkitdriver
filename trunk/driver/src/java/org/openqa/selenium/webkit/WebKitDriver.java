@@ -129,7 +129,9 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public Socket connect() {
       try {
-        return serverSocket.accept();
+        Socket dataSocket = serverSocket.accept();
+        dataSocket.setTcpNoDelay(true);
+        return dataSocket;
       } catch (IOException e) {
         throw new WebDriverException("WebKitDriver client socket creation error:" +
             e.getMessage());
@@ -212,7 +214,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public WebKitDriver(String userAgent) {
-    if (!WebKitJNI.isMainThread())
+//    if (!WebKitJNI.isMainThread())
     {
         if (pipe == null)
             pipe = new Pipe();
