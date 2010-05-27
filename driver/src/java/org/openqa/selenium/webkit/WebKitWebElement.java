@@ -36,6 +36,7 @@ limitations under the License.
 package org.openqa.selenium.webkit;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,6 +77,11 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
   protected long element;
   protected WebKitDriver parent;
+  
+  public WebKitWebElement() {
+    parent = null;
+    element = 0;
+  }
 
   public WebKitWebElement(WebKitDriver parent, long ref)
   {
@@ -481,7 +487,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     return element;
   }
 
-  protected void assertElementNotStale() {
+  public void assertElementNotStale() {
       long retval = parent.jni().stale(element);
   if (retval != 0) {
           throw new StaleElementReferenceException(
@@ -515,4 +521,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
       parent.jni().mediaPlay(element, false);
   }
 
+  long getElement() {
+    return element;
+  }
 }

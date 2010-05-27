@@ -485,7 +485,9 @@ jobject getObjectFromValue (JNIEnv *env, jobject driver, ScriptState *state, JSC
         else if (object->inherits(&JSNode::s_info)) {
             objClass = env->FindClass("org/openqa/selenium/webkit/WebKitWebElement");
             cid = env->GetMethodID(objClass, "<init>", "(Lorg/openqa/selenium/webkit/WebKitDriver;J)V");
-            result = env->NewObject(objClass, cid, driver, toNode(object));
+            WebCore::Node *node = toNode(object);
+            node->ref();
+            result = env->NewObject(objClass, cid, driver, node);
             env->DeleteLocalRef(objClass);
         }
         else if (object->inherits(&DateInstance::info)) {
@@ -580,7 +582,6 @@ JSC::JSValue parseArgument(JNIEnv* env, WebKitDriver* drv, jobject argument)
     jclass jdoubleClass = env->FindClass("java/lang/Double");
     if (!jstrClass || !webElementClass || !jboolClass || !jintClass ||
             !jlongClass || !jdoubleClass) {
-        printf ("Error in JNI Class calls\n");
         return JSValue();
     }
     jmethodID cid = env->GetMethodID(webElementClass, "getReference", "()J");
@@ -666,7 +667,6 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_evaluateJS(J
     JSC::JSObject* jsFunctionObj = JSC::constructFunction(
             state, funcArgs, Identifier(state, functionName), UString(""), lineNumber);
     if (state->hadException() || !jsFunctionObj) {
-        printf ("JavaScript function argument exception\n");
         return processException(env, state, state->exception());
     }
     JSFunction *jsFunction = static_cast<JSFunction*>(jsFunctionObj);
@@ -1297,7 +1297,6 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_submit(JNIEnv 
     else {
         form = ((HTMLElement*)element)->form();
         if (!form) {
-            printf("Form not found!\n");
             return jresult;
         }
     }
@@ -1377,7 +1376,6 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_toggle(JNIEnv 
         }
     }
     else {
-        printf("Invalid element for selection\n");
         return -1;
     }
     waitFrameLoaded(element->document()->frame());
@@ -1528,7 +1526,6 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_selectWindow(J
         }
     }
     else {
-        printf("Window not found: [%s]\n", windowName.utf8().data());
     }
 
     return jresult;

@@ -74,6 +74,8 @@ public class WebKitWrapper {
                 try {
                     WebKitSerializer.serialize(bb, res);
                 } catch (Exception e) {
+                    System.out.println("Caught exceptiong - returning 0");
+                    System.out.println(e.toString());
                     res = 0;
                     WebKitSerializer.serialize(bb, res);
                 }

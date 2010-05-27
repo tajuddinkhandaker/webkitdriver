@@ -153,8 +153,10 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     private DataOutputStream dataOut;
     private DataInputStream dataIn;
     private boolean isRunning;
+    private WebKitDriver parent;
 
-    public Forwarder() {
+    public Forwarder(WebKitDriver parent) {
+        this.parent = parent;
         ProcessBuilder pb = new ProcessBuilder(System.getProperty("java.home") +"/bin/java", "-classpath", System.getProperty("java.class.path") ,
             "org.openqa.selenium.webkit.WebKitWrapper", Integer.toString(pipe.getServerPort()));
         try {
@@ -198,7 +200,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             int c = dataIn.read(buffer.array());
             if (c != len)
                 throw new WebDriverException("Communication error");
-            return WebKitSerializer.deserialize(buffer);
+            return WebKitSerializer.deserialize(buffer, parent);
         } catch (Exception e) {
             try {
                 wrapper.exitValue();
@@ -218,7 +220,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     {
         if (pipe == null)
             pipe = new Pipe();
-        Forwarder handler = new Forwarder();
+        Forwarder handler = new Forwarder(this);
         jni = (WebKitInterface)Proxy.newProxyInstance(
                             WebKitInterface.class.getClassLoader(),
                             new Class[] { WebKitInterface.class },
@@ -360,7 +362,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     if (! (obj instanceof Number || obj instanceof String ||
         obj instanceof Collection || obj instanceof Boolean ||
         obj.getClass().isArray() || obj instanceof WebElement))
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException(obj.toString());
 
     if (obj instanceof WebElement || obj instanceof Integer ||
         obj instanceof Boolean || obj instanceof Long ||
@@ -958,4 +960,5 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       String base64str = new Base64Encoder().encode(dump.getBytes());
       return target.convertFromBase64Png(base64str);
   }
+
 }
