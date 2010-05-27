@@ -11,13 +11,13 @@ WebKit code is divided into several directories, but in general it can be divide
   * _WebCore_
   * _WebKit_
 
-JavaScriptCode contains source code of javascript engine used in WebKit by default (it can use other JS engines, e.g. V8 in case of Chome browser). Desptite its name, it also contain a number of utility classes and functions used all across WebKit source code, as well as essential sustem-specific functions like thread creation and synchronization, access to system time.
+*JavaScriptCode* contains source code of javascript engine used in WebKit by default (it can use other JS engines, e.g. V8 in case of Chome browser). Despite its name, it also contains a number of utility classes and functions used all across WebKit source code, as well as essential system-specific functions like thread creation and synchronization, access to system time.
 
-WebCore contains source code of core browser functionality, like fetching, parsing and rendering of web pages, rendering form controls, access to local storage etc. Thought it contains mostly a generic code, a lot of code is system and port-specific.
+*WebCore* contains source code of core browser functionality, like fetching, parsing and rendering of web pages, rendering form controls, access to local storage etc. Thought it contains mostly a generic code, a lot of code is system and port-specific.
 
-WebKit contains source code specific to each port - Qt, Wx, Gtk, Chrome. It provides high-level API and widgets.
+*WebKit* contains source code specific to each port - Qt, Wx, Gtk, Chrome. It provides high-level API and widgets.
 
-WebKit does not provide any generic library. Instead, several ports exists, which produce port-specific dynamic libraries linking together generic WebKit code and port-specific code. There is no clear distinction between generic and port-specific code - any port can redefine almost any generic functionality when needed. This leads to situation when header files are filled with lots of port-specific defines. Except this, the code has clear structure - all port-specific code is kept in port-specific directories.
+WebKit does not provide any generic library. Instead, several ports exists, which produce port-specific dynamic libraries linking together generic WebKit code and port-specific code. There is no clear distinction between generic and port-specific code - any port can redefine almost any generic functionality when needed. This leads to situation when header files are filled with lots of port-specific defines. Except this, the code has clear structure; all port-specific code is kept in port-specific directories.
 
 == Data types ==
   * String, PlatformString, StringImpl, AtomicString
@@ -51,7 +51,7 @@ All windowing systems or libraries provide main event loop concept, however this
 
 `bool Headless::processExpiredTimers()` is a helper function which invokes all scheduled timers with elapsed intervals. Its semantics can be described as “process all scheduled events which will not block execution of the current function“. 
 
-These high-level functions depends on functionality provided by very simple functions from _WebCore/platform/SharedTimerHl.cpp_  which are used as 
+These high-level functions depends on functionality provided by very simple functions from _WebCore/platform/SharedTimerHl.cpp_  which are used as [TODO: complete.]
 
 == Threads synchronization ==
 While most of the web page rendering functionality is done within a single thread, there is number of exceptions. Such features as database support or workers spawn separate threads which require synchronization with main thread. Extra threads can schedule invocation of a function in main thread. Main thread should call `WTF::dispatchFunctionsFromMainThread()` function to invoke such scheduled functions. Since headless port does not have native event loop, this functions is invoked each time processTimer or processExpiredTimers functions are invoked to provide transparent thread synchronization.
@@ -65,8 +65,7 @@ While most of the web page rendering functionality is done within a single threa
 WebKitDriver is one of the drivers of WebDriver project, built on top of headless webkit
 
 == Code Structure ==
-WebKitDriver consists of Java part, C++ bindings implementing JNI interface and unit tests. Java part is located in
-_driver/java_ directory, tests can be found in _driver/test_. JNI bindings are kept separately in WebKit tree, the path is
+WebKitDriver consists of Java part, C++ bindings implementing JNI interface and unit tests. Java part is located in _driver/java_ directory, tests can be found in _driver/test_. JNI bindings are kept separately in WebKit tree, the path is
 _hlwk/WebKit/hl_.
 
 == Events handling ==
