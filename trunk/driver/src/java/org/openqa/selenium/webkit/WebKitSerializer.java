@@ -210,7 +210,7 @@ public class WebKitSerializer {
       stream.put(webKitWebElementType);
       ((WebKitWebElement)object).assertElementNotStale();
       stream.putInt(-1);
-      stream.putLong(((WebKitWebElement)object).getWrappedDriver.getController());
+      stream.putLong(((WebKitDriver)((WebKitWebElement)object).getWrappedDriver()).getController());
       stream.putLong(((WebKitWebElement)object).getElement());
     } else if (object instanceof Rectangle) {
       stream.put(rectangleType);
