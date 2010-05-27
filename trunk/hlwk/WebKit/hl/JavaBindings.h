@@ -56,7 +56,7 @@ extern "C" {
     JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAttribute
     (JNIEnv *env, jobject obj, jlong ref, jstring name);
 
-    JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getProperty(JNIEnv *env, jobject obj,jlong ref, jstring name);
+    JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getProperty(JNIEnv *env, jobject obj, jlong ref, jstring name);
 
     JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getText
     (JNIEnv *env, jobject obj, jlong ref);
@@ -70,8 +70,8 @@ extern "C" {
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setValue
     (JNIEnv *env, jobject obj, jlong ref, jstring val);
 
-    JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_goBack(JNIEnv *env, jobject obj, jlong ref);
-    JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_goForward(JNIEnv *env, jobject obj, jlong ref);
+    JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_goBack(JNIEnv *env, jobject obj, jlong ref);
+    JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_goForward(JNIEnv *env, jobject obj, jlong ref);
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_refresh(JNIEnv *env, jobject obj, jlong ref);
 
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_submit(JNIEnv *env, jobject obj, jlong ref);
