@@ -353,8 +353,8 @@ public class WebKitSerializer {
       case rectangleType:
         int x = (int)stream.getDouble();
         int y = (int)stream.getDouble();
-        int width = (int)stream.getInt();
-        int height = (int)stream.getInt();
+        int width = (int)stream.getDouble();
+        int height = (int)stream.getDouble();
         return new Rectangle(x, y, width, height);
       case webDriverExceptionType:
         String message = deserializeString(stream, size);
