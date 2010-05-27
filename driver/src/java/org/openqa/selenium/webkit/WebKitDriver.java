@@ -214,7 +214,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   }
 
   public WebKitDriver(String userAgent) {
-//    if (!WebKitJNI.isMainThread())
+    if (!WebKitJNI.isMainThread())
     {
         if (pipe == null)
             pipe = new Pipe();
