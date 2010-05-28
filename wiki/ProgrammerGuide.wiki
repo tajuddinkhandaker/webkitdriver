@@ -41,6 +41,17 @@ Headless specific files live in the following directories:
   * _WebCore/platform/network/curl_
 
 == Modifications of original WebKit source code ==
+While most of the headless-specific code is kept separately in _hl_ directories, modifications of common header files are requires to specify platform-specific data types. These modifications can be found in header files of WebCore project, guarded with preprocessor directives:
+{{{
+#if PLATFORM(HEADLESS)
+...
+#endif
+}}}
+
+In most cases this is used to provide stubs instead of OS or windowing system objects in the code related to on-screen rendering. This approach can be used to modification of class interfaces, but it is highly not recommended and acceptable only if same functionality can not be implemented in other way.
+
+Known modification of interfaces:
+  * Public method `void networkStateChange(bool online)` is added to `NetworkStateNotifier` class to make it possible emulate switching between online and offline mode.
 
 == Handling scheduled events ==
 A lot of WebKit functionality relies on scheduled events, which should be called from main thread event loop. The top-level interface for scheduling functions is WebCore::Timer class. Timer “fire“ method is invoked after specified interval of time. It is a common practice to create timers with zero interval to invoke a function as soon as possible from main event loop.
@@ -57,8 +68,15 @@ These high-level functions depends on functionality provided by very simple func
 While most of the web page rendering functionality is done within a single thread, there is number of exceptions. Such features as database support or workers spawn separate threads which require synchronization with main thread. Extra threads can schedule invocation of a function in main thread. Main thread should call `WTF::dispatchFunctionsFromMainThread()` function to invoke such scheduled functions. Since headless port does not have native event loop, this functions is invoked each time processTimer or processExpiredTimers functions are invoked to provide transparent thread synchronization.
 
 == Keyboard events ==
+There is no real keyboard in headless mode, however lots of the test cases send key presses and expect they are correctly handled by browser. To achieve this, headless port have own implementation of `PlatformKeyboardEvent` class. The class is designed to match keyboard interface of WebDriver. Unlike other platform, headless PlatformKeyboardEvent is constructed using unicode character code, which can represent either any keyboard character, navigation or modifier key like LEFT, RIGHT, SHIFT. Each unicode character code is analyzed and converted to such keyboard event properties as virtual key code, key character and modifier keys state, so it can hardly be distinguished from real keyboard event in platform-independent WebKit code, including javascript.
+ 
 == Fonts handling ==
+Font rendering is not supported at the moment by headless webkit (though it is planned in next releases). However, headless webkit has to provide stubs for font rendering to integrate with other WebKit subsystems.
+
+Headless WebKit provides very simple font stubs, which allows only querying of some fake font characteristics like accent, font size, font family, etc. This is sufficient to WebKit functionality, however can result in unexpected results when calculating dimensions of region occupied by text. 
+ 
 == Rendering ==
+Rendering is completely torn off at the moment. There exists stubs for some font controls, like checkbox and input which are used to adjust control dimensions only. 
 
 = WebKitDriver =
 
@@ -114,4 +132,4 @@ The list of supported shortcuts is:
   * Shift + navigation keys - move cursor and modify selection 
 
 WebKit editor has a large list of available editing actions, which can be found in _WebCore/editing/EditorCommand.cpp_ file in WebKit source tree. Developer only need to map keyboard shortcut to 
-one of this actions. This can be done in `handleKeyboardEvent` method of `EditorClientHl` class, defined in_WebKit/hl/WebKitSupport/EditorClientHl.cpp_ file. This method analyses keyboard code and modifiers of keyboard event and invokes appropriate editor method.
+one of this actions. This can be done in `handleKeyboardEvent` method of `EditorClientHl` class, defined in _WebKit/hl/WebKitSupport/EditorClientHl.cpp_ file. This method analyses keyboard code and modifiers of keyboard event and invokes appropriate editor method.
