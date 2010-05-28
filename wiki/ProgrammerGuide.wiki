@@ -40,6 +40,11 @@ Headless specific files live in the following directories:
   * _WebCore/platform/network/hl_ - implementation of cookie jar and local modifications of files originating from 
   * _WebCore/platform/network/curl_
 
+== Build System ==
+Headless webkit port uses rake as a build system. Build instructions can be found in Rakefile located in hlwk directory. This rake script uses several helper functions which are kept separately and can be found in _hlwk/WebKitTool/hl/cc_library.rb_ file.
+
+Resulting library _libhlwk.so_ is placed to _hlwk/WebKitBuild/Release_ directory along with jsc binary, which is standalone command-line javascript interpreter.
+ 
 == Modifications of original WebKit source code ==
 While most of the headless-specific code is kept separately in _hl_ directories, modifications of common header files are requires to specify platform-specific data types. These modifications can be found in header files of WebCore project, guarded with preprocessor directives:
 {{{
