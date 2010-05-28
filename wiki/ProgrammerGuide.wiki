@@ -118,6 +118,7 @@ Java, JNI
   * Database, application cache and cookie storage is shared between all instances of WebKitDriver, living within a process.
   * CSS offsets are rounded to integers
   * DesignMode is not properly supported
+  * Online/offline mode is shared between all instances of WebKitDriver within a process.
 
 == Extending WebKitDriver ==
 
