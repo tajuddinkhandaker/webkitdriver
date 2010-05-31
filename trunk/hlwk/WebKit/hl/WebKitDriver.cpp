@@ -283,20 +283,10 @@ void WebKitDriver::SetFrame(WebCore::Frame *frame) {
     priv->frame = frame;
 }
 
-void WebKitDriver::Stop() {
-}
-
 void WebKitDriver::Reload() {
     if (priv->frame && priv->frame->loader()) {
         priv->frame->loader()->reload();
     }
-}
-
-void WebKitDriver::LoadURL(const char* url) {
-    WebCore::String str = WebCore::String::fromUTF8(url);
-    WebCore::KURL kurl = WebCore::KURL(WebCore::KURL(), str, WebCore::UTF8Encoding());
-    priv->frame->loader()->load(kurl, false);
-    waitFrameLoaded();
 }
 
 bool WebKitDriver::GoBack() {
@@ -311,87 +301,6 @@ bool WebKitDriver::GoForward() {
         return priv->frame->page()->goForward() && waitFrameLoaded();
 
     return false;
-}
-
-bool WebKitDriver::CanGoBack()
-{
-//    if (priv->frame && priv->frame->page() && priv->frame->page()->backForwardList())
-//        return priv->frame->page()->backForwardList()->backItem() != NULL;
-
-    return false;
-}
-
-bool WebKitDriver::CanGoForward() {
-//    if (priv->frame && priv->frame->page() && priv->frame->page()->backForwardList())
-//        return priv->frame->page()->backForwardList()->forwardItem() != NULL;
-
-    return false;
-}
-
-void WebKitDriver::Undo() {
-}
-
-void WebKitDriver::Redo() {
-}
-
-bool WebKitDriver::CanUndo() {
-    return false;
-}
-
-bool WebKitDriver::CanRedo() {
-    return false;
-}
-
-bool WebKitDriver::CanIncreaseTextSize() const {
-    return false;
-}
-
-void WebKitDriver::IncreaseTextSize() {
-}
-
-bool WebKitDriver::CanDecreaseTextSize() const {
-    return false;
-}
-
-void WebKitDriver::DecreaseTextSize() {        
-}
-
-void WebKitDriver::ResetTextSize() {
-}
-
-void WebKitDriver::MakeEditable(bool enable) {
-    m_isEditable = enable;
-}
-
-bool WebKitDriver::CanCopy() {
-    return false;
-}
-
-void WebKitDriver::Copy() {
-}
-
-bool WebKitDriver::CanCut() {
-    return false;
-}
-
-void WebKitDriver::Cut() {
-}
-
-bool WebKitDriver::CanPaste() {
-    return false;
-}
-
-void WebKitDriver::Paste() {
-}
-
-bool WebKitDriver::ShouldClose() const {
-    return true;
-}
-
-void WebKitDriver::processAllEvents() {
-    while ( Headless::processTimer() ) {
-        WTFLog(&WebCore::LogEvents, "Process timers...\n");
-    };
 }
 
 void WebKitDriver::SetBusyState (bool isBusy, int who) {

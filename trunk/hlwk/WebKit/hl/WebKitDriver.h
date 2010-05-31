@@ -52,40 +52,17 @@ class WebKitDriver
 public:
     WebKitDriver(WebCore::String userAgent=WebCore::String());
 
-    static void processAllEvents();
     static void cleanup();
     
     ~WebKitDriver();
     
-    void LoadURL(const char* url);
     bool GoBack();
     bool GoForward();
-    void Stop();
     void Reload();
     
-    bool CanGoBack();
-    bool CanGoForward();
-    
-    bool CanCut();
-    bool CanCopy();
-    bool CanPaste();
-    
-    void Cut();
-    void Copy();
-    void Paste();
-    
-    bool CanUndo();
-    bool CanRedo();
-    
-    void Undo();
-    void Redo();
-    
-    bool CanIncreaseTextSize() const;
     void IncreaseTextSize();
-    bool CanDecreaseTextSize() const;
     void DecreaseTextSize();
     void ResetTextSize();
-    void MakeEditable(bool enable);
     bool IsEditable() const { return m_isEditable; }
 
     bool IsReady() const { return m_loading == 0; }
@@ -96,8 +73,6 @@ public:
     WebCore::GeolocationControllerClientHl* GetGeolocationClient();
     WebCore::DatabaseTrackerClientHl* GetSQLClient();
     bool setDatabaseEnabled(bool);
-
-    bool ShouldClose() const;
 
     // HTML 5 asynchronous work support
     // generic state to provide information on who is doing asynchronous work
