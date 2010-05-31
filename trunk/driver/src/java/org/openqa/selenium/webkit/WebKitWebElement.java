@@ -85,12 +85,18 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
   public WebKitWebElement(WebKitDriver parent, long ref)
   {
+    this(parent, ref, true);
+  }
+
+  public WebKitWebElement(WebKitDriver parent, long ref, boolean checkStale)
+  {
     if (ref == 0) {
       throw new WebDriverException("Invalid element");
     }
     element = ref;
     this.parent = parent;
-    assertElementNotStale();
+    if (checkStale)
+        assertElementNotStale();
   }
 
   public void click() {

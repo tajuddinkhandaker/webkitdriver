@@ -179,9 +179,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
         }
         try {
             // Serialize and send request to remove process
-            ByteBuffer bb = WebKitSerializer.putMethodIntoStream(method, args);
-            dataOut.writeInt(bb.position());
-            dataOut.write(bb.array(), 0, bb.position());
+            WebKitSerializer.putMethodIntoStream(dataOut, method, args);
             dataOut.flush();
 
             // Child's stderr printing
@@ -195,12 +193,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             }
 
             // Receive response and deserialize it
-            int len = dataIn.readInt();
-            ByteBuffer buffer = ByteBuffer.allocate(len);
-            int c = dataIn.read(buffer.array());
-            if (c != len)
-                throw new WebDriverException("Communication error");
-            return WebKitSerializer.deserialize(buffer, parent);
+            return WebKitSerializer.deserialize(dataIn, parent);
         } catch (Exception e) {
             try {
                 wrapper.exitValue();
