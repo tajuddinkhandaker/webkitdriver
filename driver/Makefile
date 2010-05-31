@@ -10,7 +10,7 @@ all: wd
 
 wd: $(WD_CLASS)
 
-%.class: %.java
+$(DST_DIR)/%.class: $(SRC_DIR)/%.java
 	javac -classpath build:../WebDriver/build/common/common.jar -d $(DST_DIR) $<
 
 .PHONY: all wd
