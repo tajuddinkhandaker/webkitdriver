@@ -56,31 +56,23 @@ public class WebKitWrapper {
             dataSocket.setTcpNoDelay(true);
             DataOutputStream out = new DataOutputStream(dataSocket.getOutputStream());
             DataInputStream in   = new DataInputStream(dataSocket.getInputStream());
+        
             while (true) {
-                int len = in.readInt();
-                ByteBuffer buffer = ByteBuffer.allocate(len);
-                int c = in.read(buffer.array());
-                if (c != len)
-                    break;
-
                 Object res;
                 try {
-                    res = WebKitSerializer.invokeMethodFromStream(buffer);
+                    res = WebKitSerializer.invokeMethodFromStream(in);
                 } catch (Exception e) {
                     res = e;
                 }
 
-                ByteBuffer bb = ByteBuffer.allocate(30000);
                 try {
-                    WebKitSerializer.serialize(bb, res);
+                    WebKitSerializer.serialize(out, res);
                 } catch (Exception e) {
                     System.out.println("Caught exceptiong - returning 0");
                     System.out.println(e.toString());
                     res = 0;
-                    WebKitSerializer.serialize(bb, res);
+                    WebKitSerializer.serialize(out, res);
                 }
-                out.writeInt(bb.position());
-                out.write(bb.array(), 0, bb.position());
                 out.flush();
             }
         } catch (IOException e) {

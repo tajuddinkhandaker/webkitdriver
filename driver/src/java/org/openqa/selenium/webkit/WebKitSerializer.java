@@ -19,6 +19,9 @@ limitations under the License.
 package org.openqa.selenium.webkit;
 
 import java.awt.Rectangle;
+import java.io.DataOutputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -67,13 +70,15 @@ public class WebKitSerializer {
    * @param args Array of arguments for the method
    * @return ByteBuffer with serialized method
    */
-  public static ByteBuffer putMethodIntoStream(Method method, Object args[]) throws WebDriverException {
-    ByteBuffer stream = ByteBuffer.allocate(30000);
+  public static void putMethodIntoStream(DataOutputStream stream, Method method, Object args[]) throws WebDriverException, IOException {
     serialize(stream, method);
     for (int i = 0; i < method.getParameterTypes().length; i++) {
+      try {
         serialize(stream, args[i]);
+      } catch (Exception e) {
+        serialize(stream, e);
+      }
     }
-    return stream;
   }
 
   /**
@@ -82,14 +87,25 @@ public class WebKitSerializer {
    * @param stream ByteBuffer with serialized method
    * @return Object as result of method invocation
    */
-  public static Object invokeMethodFromStream(ByteBuffer stream) throws WebDriverException {
+  public static Object invokeMethodFromStream(DataInputStream stream) throws WebDriverException, IOException {
     Object method = deserialize(stream);
     if (!(method instanceof Method))
       throw new WebDriverException("Incorrect serialization format");
 
     ArrayList args = new ArrayList();
-    for (int i = 0; i < ((Method)method).getParameterTypes().length; i++)
-      args.add(deserialize(stream));
+    Exception le = null;
+    for (int i = 0; i < ((Method)method).getParameterTypes().length; i++) {
+      try {
+        args.add(deserialize(stream));
+      } catch(Exception e) {
+        System.err.println("Errr during deserialization: " + e.getMessage());
+        le = e;
+      }
+    }
+    if (le != null) {
+      return le;
+    }
+
     try {
       Object result = ((Method)method).invoke(WebKitJNI.getInstance(), args.toArray());
       if (result instanceof WebDriverException) throw (WebDriverException)result;
@@ -107,46 +123,44 @@ public class WebKitSerializer {
    * @param stream ByteBuffer where object will be put
    * @param object Object to serialize
    */
-  public static void serialize(ByteBuffer stream, Object object) {
+  public static void serialize(DataOutputStream stream, Object object) throws IOException {
     if (object == null) {
-      stream.put(nullType);
-      stream.putInt(0);
+      stream.write(nullType);
+      stream.writeInt(0);
     } else if (object instanceof Long) {
-      stream.put(longType);
-      stream.putInt(-1);
-      stream.putLong((Long)object);
+      stream.write(longType);
+      stream.writeInt(-1);
+      stream.writeLong((Long)object);
     } else if (object instanceof Integer) {
-      stream.put(intType);
-      stream.putInt(-1);
-      stream.putInt((Integer)object);
+      stream.write(intType);
+      stream.writeInt(-1);
+      stream.writeInt((Integer)object);
     } else if (object instanceof Double) {
-      stream.put(doubleType);
-      stream.putInt(-1);
-      stream.putDouble((Double)object);
+      stream.write(doubleType);
+      stream.writeInt(-1);
+      stream.writeDouble((Double)object);
     } else if (object instanceof Boolean) {
-      stream.put(booleanType);
-      stream.putInt(-1);
-      stream.put((Boolean)object ? (byte)1 : (byte)0);
+      stream.write(booleanType);
+      stream.writeInt(-1);
+      stream.writeBoolean((Boolean)object);
     } else if (object instanceof Object[]) {
       Object[] array = (Object[])object;
-      stream.put(arrayType);
-      stream.putInt(array.length);
+      stream.write(arrayType);
+      stream.writeInt(array.length);
       for (int i = 0; i < array.length; i++) {
         serialize(stream, array[i]);
       }
     } else if (object instanceof String) {
-      stream.put(stringType);
-      stream.putInt(((String)object).getBytes().length);
-      stream.put(((String)object).getBytes());
+      stream.write(stringType);
+      serializeString(stream, (String)object);
     } else if (object instanceof Method){
-      stream.put(methodType);
-      stream.putInt(((Method)object).getName().getBytes().length);
-      stream.put(((Method)object).getName().getBytes());
+      stream.write(methodType);
+      serializeString(stream, ((Method)object).getName());
     } else if (object instanceof Map) {
       final Map map = (Map)object;
       int len = map.size();
-      stream.put(mapType);
-      stream.putInt(len);
+      stream.write(mapType);
+      stream.writeInt(len);
       for (Object entry : map.entrySet()) {
         serialize(stream, ((Map.Entry)entry).getKey());
         serialize(stream, ((Map.Entry)entry).getValue());
@@ -154,8 +168,8 @@ public class WebKitSerializer {
     } else if (object instanceof List) {
       final List obj = (List)object;
       int size = obj.size();
-      stream.put(listType);
-      stream.putInt(size);
+      stream.write(listType);
+      stream.writeInt(size);
       serialize(stream, object.getClass().getName());
       for (Object entry : obj) {
         serialize(stream, entry);
@@ -165,8 +179,8 @@ public class WebKitSerializer {
     } else if (object instanceof Collection) {
       final Collection obj = (Collection)object;
       int size = obj.size();
-      stream.put(collectionType);
-      stream.putInt(size);
+      stream.write(collectionType);
+      stream.writeInt(size);
       serialize(stream, object.getClass().getName());
       for (Object entry : obj) {
         serialize(stream, entry);
@@ -176,55 +190,55 @@ public class WebKitSerializer {
     } else if (object instanceof ResultSetRows) {
       final ResultSetRows obj = (ResultSetRows)object;
       int size = obj.size();
-      stream.put(resultSetRowsType);
-      stream.putInt(size);
+      stream.write(resultSetRowsType);
+      stream.writeInt(size);
       for (int i = 0; i < size; i++) {
         serialize(stream, obj.item(i));
       }
     } else if (object instanceof ResultSet) {
-      stream.put(resultSetType);
-      stream.putInt(-1);
+      stream.write(resultSetType);
+      stream.writeInt(-1);
       final ResultSet obj = (ResultSet)object;
-      stream.putInt(obj.getLastInsertedRowId());
-      stream.putInt(obj.getNumberOfRowsAffected());
+      stream.writeInt(obj.getLastInsertedRowId());
+      stream.writeInt(obj.getNumberOfRowsAffected());
       serialize(stream, obj.rows());
     } else if (object instanceof Location) {
-      stream.put(locationType);
-      stream.putInt(-1);
+      stream.write(locationType);
+      stream.writeInt(-1);
       final Location obj = (Location)object;
-      stream.putDouble(obj.getLatitude());
-      stream.putDouble(obj.getLongitude());
-      stream.putDouble(obj.getAltitude());
+      stream.writeDouble(obj.getLatitude());
+      stream.writeDouble(obj.getLongitude());
+      stream.writeDouble(obj.getAltitude());
     } else if (object instanceof AppCacheEntry) {
-      stream.put(appCacheEntryType);
-      stream.putInt(-1);
+      stream.write(appCacheEntryType);
+      stream.writeInt(-1);
       final AppCacheEntry obj = (AppCacheEntry)object;
-      stream.putInt(obj.getType().value());
+      stream.writeInt(obj.getType().value());
       serialize(stream, obj.getUrl());
       serialize(stream, obj.getMimeType());
     } else if (object instanceof WebKitDriver) {
-      stream.put(webKitDriverType);
-      stream.putInt(-1);
-      stream.putLong(((WebKitDriver)object).getController());
+      stream.write(webKitDriverType);
+      stream.writeInt(-1);
+      stream.writeLong(((WebKitDriver)object).getController());
     } else if (object instanceof WebKitWebElement) {
-      stream.put(webKitWebElementType);
-      ((WebKitWebElement)object).assertElementNotStale();
-      stream.putInt(-1);
-      stream.putLong(((WebKitDriver)((WebKitWebElement)object).getWrappedDriver()).getController());
-      stream.putLong(((WebKitWebElement)object).getElement());
+      //((WebKitWebElement)object).assertElementNotStale();
+      stream.write(webKitWebElementType);
+      stream.writeInt(-1);
+      stream.writeLong(((WebKitDriver)((WebKitWebElement)object).getWrappedDriver()).getController());
+      stream.writeLong(((WebKitWebElement)object).getElement());
     } else if (object instanceof Rectangle) {
-      stream.put(rectangleType);
-      stream.putInt(-1);
+      stream.write(rectangleType);
+      stream.writeInt(-1);
       Rectangle rect = (Rectangle)object;
-      stream.putDouble(rect.getX());
-      stream.putDouble(rect.getY());
-      stream.putDouble(rect.getSize().getWidth());
-      stream.putDouble(rect.getSize().getHeight());
+      stream.writeDouble(rect.getX());
+      stream.writeDouble(rect.getY());
+      stream.writeDouble(rect.getSize().getWidth());
+      stream.writeDouble(rect.getSize().getHeight());
     } else if (object instanceof WebDriverException) {
-      stream.put(webDriverExceptionType);
+      stream.write(webDriverExceptionType);
       serializeString(stream, ((WebDriverException)object).getMessage());
     } else if (object instanceof Exception) {
-      stream.put(exceptionType);
+      stream.write(exceptionType);
       serializeString(stream, object.getClass().getName());
       serialize(stream, (((Exception)object).getMessage()));
     } else
@@ -237,34 +251,30 @@ public class WebKitSerializer {
    * @param stream ByteBuffer with serialized object
    * @return deserialized object
    */
-  public static Object deserialize(ByteBuffer stream, WebKitDriver driver) {
-    byte type = stream.get();
-    int size = stream.getInt();
+  public static Object deserialize(DataInputStream stream, WebKitDriver driver) throws IOException {
+    byte type = stream.readByte();
+    int size = stream.readInt();
     switch (type) {
       case nullType:
         return null;
       case longType:
-        return stream.getLong();
+        return stream.readLong();
       case intType:
-        return stream.getInt();
+        return stream.readInt();
       case doubleType:
-        return stream.getDouble();
+        return stream.readDouble();
       case booleanType:
-        byte bool = stream.get();
-        if (bool == 0) return new Boolean(false);
-        return new Boolean(true);
+        return stream.readBoolean();
       case stringType:
-        String s = new String(stream.array(), stream.position(), size);
-        stream.position(stream.position()+size);
-        return s;
+        return deserializeString(stream, size);
       case arrayType:
         ArrayList array = new ArrayList(size);
-        for (int i = 0; i < size; i++)
-          array.add(deserialize(stream, driver));
+        for (int i = 0; i < size; i++) {
+           array.add(deserialize(stream, driver));
+        }
         return array.toArray();
       case methodType:
-        String name = new String(stream.array(), stream.position(), size);
-        stream.position(stream.position()+size);
+        String name = deserializeString(stream, size);
         try {
         // FIXME at the moment all methods should have different names
         // otherwise method lookup may fail
@@ -310,8 +320,8 @@ public class WebKitSerializer {
           collection.add(deserialize(stream, driver));
         return collection;
       case resultSetType: {
-        int insertId       = stream.getInt();
-        int rowsAffected   = stream.getInt();
+        int insertId       = stream.readInt();
+        int rowsAffected   = stream.readInt();
         ResultSetRows rows = (ResultSetRows)deserialize(stream, driver);
         return new ResultSet(insertId, rowsAffected, rows);
       }
@@ -323,9 +333,9 @@ public class WebKitSerializer {
         return new ResultSetRows(rows);
       }
       case locationType: {
-        double latitude  = stream.getDouble();
-        double longitude = stream.getDouble();
-        double altitude  = stream.getDouble();
+        double latitude  = stream.readDouble();
+        double longitude = stream.readDouble();
+        double altitude  = stream.readDouble();
         return new Location(latitude, longitude, altitude);
       }
       case appCacheEntryType: {
@@ -333,7 +343,7 @@ public class WebKitSerializer {
             AppCacheType.MASTER, AppCacheType.MANIFEST,
             AppCacheType.EXPLICIT, AppCacheType.FALLBACK
         };
-        int i = stream.getInt();
+        int i = stream.readInt();
         if (i < 0 || i >= aACType.length)
           throw new WebDriverException("Unknown AppCacheType");
         String url      = (String)deserialize(stream, driver);
@@ -341,20 +351,20 @@ public class WebKitSerializer {
         return new AppCacheEntry(aACType[i], url, mimeType);
       }
       case webKitDriverType:
-        long webDriver = stream.getLong();
+        long webDriver = stream.readLong();
         if (driver == null) return new WebKitDriver(webDriver);
         return driver;
       case webKitWebElementType:
-        long parent = stream.getLong();
-        long element = stream.getLong(); 
+        long parent = stream.readLong();
+        long element = stream.readLong(); 
         WebKitDriver driverFromStream = driver;
         if (driver == null) driverFromStream = new WebKitDriver(parent);
-        return new WebKitWebElement(driverFromStream, element);
+        return new WebKitWebElement(driverFromStream, element, false);
       case rectangleType:
-        int x = (int)stream.getDouble();
-        int y = (int)stream.getDouble();
-        int width = (int)stream.getDouble();
-        int height = (int)stream.getDouble();
+        int x = (int)stream.readDouble();
+        int y = (int)stream.readDouble();
+        int width = (int)stream.readDouble();
+        int height = (int)stream.readDouble();
         return new Rectangle(x, y, width, height);
       case webDriverExceptionType:
         String message = deserializeString(stream, size);
@@ -377,18 +387,24 @@ public class WebKitSerializer {
     }
   }
 
-  public static Object deserialize(ByteBuffer stream) {
+  public static Object deserialize(DataInputStream stream) throws IOException {
     return deserialize(stream, null);
   }
   
-  private static void serializeString(ByteBuffer stream, String object) {
-    stream.putInt(object.getBytes().length);
-    stream.put(object.getBytes());
+  private static void serializeString(DataOutputStream stream, String object) throws IOException {
+    stream.writeInt(object.getBytes().length);
+    stream.write(object.getBytes());
   }
 
-  private static String deserializeString(ByteBuffer stream, int size) {
-    String s = new String(stream.array(), stream.position(), size);
-    stream.position(stream.position()+size);
-    return s;
+  private static String deserializeString(DataInputStream stream, int size) throws IOException {
+    byte[] buffer = new byte[size];
+    int count = 0;
+    while (count < size) {
+      count += stream.read(buffer, count, size-count);
+    }
+    if (count < size) {
+      throw new WebDriverException("Incorrect string size: expect " + size + " received " + count);
+    }
+    return new String(buffer, 0, size);
   }
 }
