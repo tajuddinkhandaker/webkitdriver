@@ -1,51 +1,62 @@
 require 'rake'
 
-webdriver_dir = '../WebDriver'
+# Determine working folders
+parent_dir = File.dirname(Dir.pwd)
+webdriver_dir = parent_dir + '/WebDriver'
+webkit_dir = parent_dir + '/driver'
 
+# Change working directory to webdriver
+Dir.chdir( webdriver_dir )
+puts "I am heeree" + Dir.pwd
+
+# Extra webdriver jars
+extra_jars = []
+extra_jars = Dir.glob(webdriver_dir + "/common/lib/buildtime/*.jar")
+
+# Additional webdriver task definitions
+require webdriver_dir + '/rake-tasks/task-gen' 
+require webdriver_dir + '/rake-tasks/checks' 
+require webdriver_dir + '/rake-tasks/zip' 
+require webdriver_dir + '/rake-tasks/java' 
+
+# Build webdriver and its tests
 task :webdriver_build do
-    Dir.chdir( webdriver_dir ) do
-        sh "./go common test_common"
-    end
+  sh "./go common test_common"
 end
 
-task :webdriver_java => [ :webdriver_build ] do
-    require webdriver_dir + '/rake-tasks/task-gen' 
-    require webdriver_dir + '/rake-tasks/checks' 
-    require webdriver_dir + '/rake-tasks/zip' 
-    require webdriver_dir + '/rake-tasks/java' 
+# Build webkitdriver
+java_jar(:name => 'webdriver_hlwk',
+         :deps => [:webdriver_build,
+                   webdriver_dir + '/build/common/common.jar'],
+         :srcs => ["../driver/src/java/**/*.java"])
 
-    java_jar(:name => 'webdriver-hlwk',
-             :deps => [ 'build/common/common.jar' ],
-             :srcs => ["../driver/src/java/**/*.java"])
+# Build webkitdriver tests
+java_test(:name => "webdriver_hlwk_test",
+          :srcs  => [ webkit_dir + '/test/java/**/*.java' ],
+          :deps =>  [ :webdriver_hlwk, 
+	              webdriver_dir + '/build/common/test.jar',
+	              webdriver_dir + '/build/common/common.jar',
+                      webdriver_dir + '/third_party/java/junit/junit-dep-4.8.1.jar',
+                    ] + extra_jars)
 
-    extra_jars = []
-    Dir.chdir( webdriver_dir ) do
-        extra_jars = Dir.glob("common/lib/buildtime/*.jar")
-    end
-    java_test(:name => "webdriver-hlwk-test",
-              :srcs  => [ "../driver/test/java/**/*.java" ],
-              :deps =>  [ 'build/common/common.jar', 
-                          'build/common/test.jar',
-                          'third_party/java/junit/junit-dep-4.8.1.jar',
-                          'webdriver-hlwk'] + extra_jars)
-end
-
+# Helper task to cd to webdriver root
 task :cd_webdriver do
-    CurDir = Dir.getwd()
-    puts "IN #{CurDir}"
     Dir.chdir( webdriver_dir )
-    puts "NOW IN #{Dir.getwd()}"
 end
 
-task :cd_cur do
-    Dir.chdir( CurDir )
+# Helper task to cd to webkitdriver root
+task :cd_webkit do
+    Dir.chdir( webkit_dir )
 end
 
+# Setup environment variables
 task :setup_env do
   puts Dir.pwd;
-  ENV['LD_LIBRARY_PATH'] = '../hlwk/WebKitBuild/Release'
+  ENV['LD_LIBRARY_PATH'] = parent_dir + '/hlwk/WebKitBuild/Release'
 end
 
-task :webdriver => [ :webdriver_java, :cd_webdriver, 'webdriver-hlwk', :setup_env, 
-                               'webdriver-hlwk-test', :cd_cur]
-task :default => [:webdriver]
+task :webkitdriver_build => [ 'webdriver_hlwk' ]
+
+task :webkitdriver_test => [:webkitdriver_build, :setup_env, 'webdriver_hlwk_test']
+
+task :default => [:webkitdriver_test]
