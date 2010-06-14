@@ -46,7 +46,6 @@ import org.openqa.selenium.Platform;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.HTML5MediaWebElement;
 import org.openqa.selenium.RenderedWebElement;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.StaleElementReferenceException;
@@ -73,7 +72,7 @@ import static org.openqa.selenium.Keys.RETURN;
 
 public class WebKitWebElement implements WebElement, RenderedWebElement,
     FindsById, FindsByLinkText, FindsByXPath, FindsByTagName, SearchContext,
-    WrapsDriver, HTML5MediaWebElement {
+    WrapsDriver {
 
   protected long element;
   protected WebKitDriver parent;

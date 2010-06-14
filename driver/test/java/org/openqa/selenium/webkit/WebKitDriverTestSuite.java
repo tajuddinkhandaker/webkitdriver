@@ -30,7 +30,6 @@ public class WebKitDriverTestSuite extends TestCase {
   public static Test suite() throws Exception {
 
     TestEnvironment environment = GlobalTestEnvironment.get();
-    GlobalTestEnvironment.setHostName(InetAddress.getLocalHost().getCanonicalHostName());
     
     return new TestSuiteBuilder()
     .addSourceDir("hlwk")
