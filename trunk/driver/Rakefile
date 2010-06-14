@@ -11,7 +11,7 @@ puts "I am heeree" + Dir.pwd
 
 # Extra webdriver jars
 extra_jars = []
-extra_jars = Dir.glob(webdriver_dir + "/common/lib/buildtime/*.jar")
+extra_jars = Dir.glob(webdriver_dir + "/third_party/**/*.jar")
 
 # Additional webdriver task definitions
 require webdriver_dir + '/rake-tasks/task-gen' 
@@ -35,8 +35,7 @@ java_test(:name => "webdriver_hlwk_test",
           :srcs  => [ webkit_dir + '/test/java/**/*.java' ],
           :deps =>  [ :webdriver_hlwk, 
 	              webdriver_dir + '/build/common/test.jar',
-	              webdriver_dir + '/build/common/common.jar',
-                      webdriver_dir + '/third_party/java/junit/junit-dep-4.8.1.jar',
+	              webdriver_dir + '/build/common/common.jar'
                     ] + extra_jars)
 
 # Helper task to cd to webdriver root

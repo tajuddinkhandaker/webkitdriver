@@ -31,7 +31,9 @@ import org.openqa.selenium.html5.DatabaseStorage;
 import org.openqa.selenium.html5.Location;
 import org.openqa.selenium.html5.LocationContext;
 import org.openqa.selenium.html5.ResultSet;
-import org.openqa.selenium.HTML5StorageSupport;
+import org.openqa.selenium.html5.LocalStorage;
+import org.openqa.selenium.html5.SessionStorage;
+import org.openqa.selenium.html5.WebStorage;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.NoSuchElementException;
@@ -95,7 +97,7 @@ import java.lang.IllegalThreadStateException;
 public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecutor,
         FindsById, FindsByLinkText, FindsByXPath, FindsByName, FindsByTagName,
         BrowserConnection, ApplicationCache, DatabaseStorage, LocationContext,
-        HTML5StorageSupport, TakesScreenshot {
+        WebStorage, TakesScreenshot {
   private long default_controller = 0;
   private long controller = 0;
   private WebKitInterface jni = (WebKitInterface)WebKitJNI.getInstance();
@@ -467,7 +469,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     return (List<AppCacheEntry>)jni.getAppCache(controller);
   }
 
-  public AppCacheStatus status()
+  public AppCacheStatus getStatus()
   {
     int status = jni.getAppCacheStatus(controller);
     if (status < 0) {
@@ -849,15 +851,14 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       }
   }
 
-  public class Storage implements Map<String,Object> {
+  public class Storage implements SessionStorage, LocalStorage {
     private boolean isSession;
 
     public Storage(boolean isSession) {
       this.isSession = isSession;
     }
 
-    public void clear()
-    {
+    public void clear() {
       jni.storageClear(controller, isSession);
     }
 
@@ -881,9 +882,9 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       return hashCode() == o.hashCode();
     }
 
-    public Object get(Object key)
+    public String getItem(String key)
     {
-      return jni.storageGetValue(controller, isSession, key.toString());
+      return (String)jni.storageGetValue(controller, isSession, key);
     }
 
     public int hashCode()
@@ -896,15 +897,12 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       return (size() == 0);
     }
 
-    public Set keySet()
-    {
+    public Set<String> keySet() {
       throw new WebDriverException("Can not convert Storage to Set");
     }
 
-    public Object put(String key, Object value)
-    {
-      return jni.storageSetValue(controller, isSession,
-                key, value.toString());
+    public void setItem(String key, String value) {
+      jni.storageSetValue(controller, isSession, key, value);
     }
 
     public void putAll(Map t)
@@ -912,13 +910,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       throw new WebDriverException("Can not copy Storage to another map");
     }
 
-    public Object remove(Object key)
-    {
-      return jni.storageSetValue(controller, isSession, key.toString(), null);
+    public String removeItem(String key) {
+      return (String)jni.storageSetValue(controller, isSession, key, null);
     }
 
-    public int size()
-    {
+    public int size() {
       long len = jni.storageLength(controller, isSession);
       if (len < 0)
         throw new WebDriverException("Can not access storage");
@@ -931,12 +927,12 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     }
   }
 
-  public Storage getSessionStorage()
+  public SessionStorage getSessionStorage()
   {
     return new Storage(true);
   }
 
-  public Storage getLocalStorage()
+  public LocalStorage getLocalStorage()
   {
     return new Storage(false);
   }
