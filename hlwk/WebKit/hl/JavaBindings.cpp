@@ -110,7 +110,7 @@ static jfieldID g_nativeClass;
 using namespace WebCore;
 
 #define to_string(env, str) (env->GetStringChars(str, NULL))
-#define to_window_handle(drv) (String::number((long)(drv)))
+#define to_window_handle(drv) (String::number((jlong)(drv)))
 
 
 static bool frameIsLoading(Frame *frame)
@@ -1499,7 +1499,7 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_selectWindow(J
     bool ok = false;
     WebKitDriver *drv = (WebKitDriver*)ref;
     String  windowName = to_string(env, name);
-    WebKitDriver* ptr = (WebKitDriver*)(windowName.toInt(&ok));
+    WebKitDriver* ptr = (WebKitDriver*)(long)(windowName.toInt64(&ok));
 
     const HashSet<Page*>& pages = PageGroup::pageGroup("headless")->pages();
     HashSet<Page*>::const_iterator end = pages.end();
@@ -1754,7 +1754,7 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_openDatabase(J
             to_string(env, name), to_string(env, version), to_string(env, displayName), size, code);
     Headless::processTimer();
     database->ref();
-    return (long)database.get();
+    return (jlong)database.get();
 }
 
 

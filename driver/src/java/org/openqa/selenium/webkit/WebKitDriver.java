@@ -327,7 +327,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   {
     if (default_controller != 0) {
       for(String handle : getWindowHandles()) {
-        long ref = Integer.parseInt(handle);
+        long ref = Long.parseLong(handle);
         jni.destroy(ref);
       }
       controller = 0;
