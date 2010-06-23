@@ -8,6 +8,10 @@ webkit_dir = parent_dir + '/driver'
 # Change working directory to webdriver
 Dir.chdir(webdriver_dir)
 
+# Extra third_pary jars
+third_party_jars_path = parent_dir + "/third_party/java/**/*.jar"
+extra_third_party_jars = FileList.new(Dir.glob(third_party_jars_path))
+
 # Extra webdriver jars
 extra_jars_include = webdriver_dir + "/third_party/**/*.jar"
 extra_jars_exclude = "android.jar"
@@ -26,10 +30,12 @@ task :webdriver_build do
   sh "./go common test_common"
 end
 
+
+
 # Build webkitdriver
 java_jar(:name => 'webdriver_hlwk',
          :deps => [:webdriver_build,
-                   webdriver_dir + '/build/common/common.jar'],
+                   webdriver_dir + '/build/common/common.jar'] + extra_third_party_jars,
          :srcs => ["../driver/src/java/**/*.java"])
 
 # Build webkitdriver tests
