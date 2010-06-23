@@ -1,6 +1,6 @@
 /*
- * Copyright 2007-2009 WebDriver committers
- * Copyright 2007-2009 Google Inc.
+ * Copyright 2007-2010 WebDriver committers
+ * Copyright 2007-2010 Google Inc.
  * Portions copyright 2007 ThoughtWorks, Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,93 +19,81 @@
 
 package org.openqa.selenium.webkit;
 
+import com.google.common.io.CharStreams;
+import com.google.common.io.InputSupplier;
+
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
-import org.openqa.selenium.html5.ApplicationCache;
-import org.openqa.selenium.html5.AppCacheEntry;
-import org.openqa.selenium.html5.AppCacheType;
-import org.openqa.selenium.html5.AppCacheStatus;
-import org.openqa.selenium.html5.BrowserConnection;
-import org.openqa.selenium.html5.DatabaseStorage;
-import org.openqa.selenium.html5.Location;
-import org.openqa.selenium.html5.LocationContext;
-import org.openqa.selenium.html5.ResultSet;
-import org.openqa.selenium.html5.LocalStorage;
-import org.openqa.selenium.html5.SessionStorage;
-import org.openqa.selenium.html5.WebStorage;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.NoSuchFrameException;
 import org.openqa.selenium.NoSuchWindowException;
 import org.openqa.selenium.OutputType;
-import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.Speed;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 import org.openqa.selenium.WebDriverException;
-import org.openqa.selenium.WebDriver.Timeouts;
-import org.openqa.selenium.webkit.WebKitSerializer;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.html5.AppCacheEntry;
+import org.openqa.selenium.html5.AppCacheStatus;
+import org.openqa.selenium.html5.ApplicationCache;
+import org.openqa.selenium.html5.BrowserConnection;
 import org.openqa.selenium.html5.DatabaseStorage;
+import org.openqa.selenium.html5.LocalStorage;
 import org.openqa.selenium.html5.Location;
+import org.openqa.selenium.html5.LocationContext;
 import org.openqa.selenium.html5.ResultSet;
+import org.openqa.selenium.html5.SessionStorage;
+import org.openqa.selenium.html5.WebStorage;
 import org.openqa.selenium.internal.Base64Encoder;
 import org.openqa.selenium.internal.FindsById;
 import org.openqa.selenium.internal.FindsByLinkText;
 import org.openqa.selenium.internal.FindsByName;
 import org.openqa.selenium.internal.FindsByTagName;
 import org.openqa.selenium.internal.FindsByXPath;
-import org.openqa.selenium.internal.ReturnedCookie;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
-import java.lang.reflect.*;
-import java.lang.Thread;
-import java.net.ConnectException;
-import java.net.URL;
-import java.net.MalformedURLException;
-import java.net.UnknownHostException;
-import java.net.Socket;
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.ServerSocket;
-import java.security.GeneralSecurityException;
+import java.net.Socket;
+import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.nio.ByteBuffer;
-import java.lang.Process;
-import java.lang.ProcessBuilder;
-import java.io.IOException;
-import java.io.DataOutputStream;
-import java.io.DataInputStream;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.lang.IllegalThreadStateException;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecutor,
         FindsById, FindsByLinkText, FindsByXPath, FindsByName, FindsByTagName,
         BrowserConnection, ApplicationCache, DatabaseStorage, LocationContext,
         WebStorage, TakesScreenshot {
+
+  private static final Logger LOGGER = Logger.getLogger(WebKitDriver.class.getName());
+
   private long default_controller = 0;
   private long controller = 0;
-  private WebKitInterface jni = (WebKitInterface)WebKitJNI.getInstance();
+  private WebKitInterface jni = WebKitJNI.getInstance();
   private Speed speed = Speed.FAST;
   private WebKitAlert currentAlert;
   private long implicitWait = 0;
   private Pipe pipe;
-
 
   /**
    * Pipe class provides communication between java processes via TCP sockets.
@@ -159,8 +147,22 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public Forwarder(WebKitDriver parent) {
         this.parent = parent;
-        ProcessBuilder pb = new ProcessBuilder(System.getProperty("java.home") +"/bin/java", "-classpath", System.getProperty("java.class.path") ,
-            "org.openqa.selenium.webkit.WebKitWrapper", Integer.toString(pipe.getServerPort()));
+
+        // Get the classpath values for the spawned process
+        String webkitdriverClassPath = WebKitDriver.class.getProtectionDomain().
+                getCodeSource().getLocation().toString();
+        String seleniumClassPath = WebDriver.class.getProtectionDomain().
+                getCodeSource().getLocation().toString();
+        String classPath = webkitdriverClassPath + System.getProperty("path.separator")
+                + seleniumClassPath;
+
+        ProcessBuilder pb = new ProcessBuilder(System.getProperty("java.home") +"/bin/java",
+              "-classpath", classPath, "-Djava.library.path=" + System.getProperty("java.library.path"),
+              "org.openqa.selenium.webkit.WebKitWrapper", Integer.toString(pipe.getServerPort()));
+
+        String sep = System.getProperty("path.separator");
+        String[] paths = System.getProperty("java.class.path").split(sep);
+
         try {
             wrapper = pb.start();
             dataSocket = pipe.connect();
@@ -170,49 +172,60 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             err = new BufferedReader(new InputStreamReader(wrapper.getErrorStream()));
             isRunning = true;
         } catch (IOException e) {
-            throw new WebDriverException("WebKitDriver wrapper can not be spawned");
+            throw new WebDriverException("WebKitDriver wrapper could not be spawned: "
+                     + e.getMessage());
         }
     }
 
-    public Object invoke(Object proxy, Method method, Object[] args)
-    {
+    public Object invoke(Object proxy, Method method, Object[] args) {
         if (!isRunning) {
            throw new WebDriverException("Child process is not running");
         }
         try {
-            // Serialize and send request to remove process
+            // Serialize and send request to remote process
             WebKitSerializer.putMethodIntoStream(dataOut, method, args);
             dataOut.flush();
 
-            // Child's stderr printing
-            while (err.ready()) {
-                System.err.println("Child's err: " + err.readLine());
-            }
-
-            // Child's stdout printing
+            // Print child's standard out
             while (in.ready()) {
-                System.out.println("Child's out: " + in.readLine());
+                LOGGER.log(Level.INFO, "Child's out: " + in.readLine());
             }
 
             // Receive response and deserialize it
             return WebKitSerializer.deserialize(dataIn, parent);
         } catch (Exception e) {
+            String wrapperOutput = "";
             try {
-                wrapper.exitValue();
                 isRunning = false;
-            } catch(IllegalThreadStateException ie) {};
-            throw new WebDriverException("Unexpected invocation exception on method " + method.getName() + ": " + e.getMessage());
+                InputSupplier<InputStream> wrapperInputSupplier = new InputSupplier<InputStream>() {
+                  @Override
+                  public InputStream getInput() {
+                    return wrapper.getInputStream();
+                  }
+                };
+
+                wrapperOutput = CharStreams.toString(
+                        CharStreams.newReaderSupplier(wrapperInputSupplier, Charset.defaultCharset()));
+
+            } catch (IOException ioExc) {
+                // Error while reading error output stream.
+                throw new WebDriverException("Unable to read error output stream from process.",
+                    ioExc);
+            }
+            String errorMessage = "Unexpected invocation exception on method " + method.getName() + "\n"
+                    + "Output from the process is: " + wrapperOutput;
+            throw new WebDriverException(errorMessage, e);
         }
     }
   }
+
 
   public WebKitDriver() {
     this(null);
   }
 
   public WebKitDriver(String userAgent) {
-    if (!WebKitJNI.isMainThread())
-    {
+    if (!WebKitJNI.isMainThread()) {
         if (pipe == null)
             pipe = new Pipe();
         Forwarder handler = new Forwarder(this);
@@ -898,6 +911,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     }
 
     public Set<String> keySet() {
+
       throw new WebDriverException("Can not convert Storage to Set");
     }
 
