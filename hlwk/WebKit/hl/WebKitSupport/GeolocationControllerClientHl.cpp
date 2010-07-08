@@ -45,7 +45,7 @@ GeolocationControllerClientHl::GeolocationControllerClientHl()
 GeolocationControllerClientHl::~GeolocationControllerClientHl() {
 }
 
-GeolocationPosition* GeolocationControllerClientHl::lastPosition() { 
+GeolocationPosition* GeolocationControllerClientHl::lastPosition() {
     return m_position.get(); 
 }
 
