@@ -57,6 +57,7 @@ void SQLTransactionCallbackHl::handleEvent(SQLTransaction* transaction, bool& ra
     PassRefPtr<SQLStatementErrorCallbackHl> statementErrorCallback = adoptRef(new SQLStatementErrorCallbackHl(m_client));
     ExceptionCode exception;
     m_client->setResult(0);
+    m_client->setError(0);
 
     // creating and executing SQLStatement(s)
     transaction->executeSQL(m_statement, m_arguments, statementCallback, statementErrorCallback, exception);
@@ -64,13 +65,18 @@ void SQLTransactionCallbackHl::handleEvent(SQLTransaction* transaction, bool& ra
 
 void SQLTransactionErrorCallbackHl::handleEvent(SQLError* error) { 
     WTFLog(&WebCore::LogStorageAPI, "Error callback");
-    m_client->setError(error);
+    if (!m_client->getError()) m_client->setError(error);
     m_client->successCallback(); 
 }
 
 void SQLStatementCallbackHl::handleEvent(SQLTransaction*, SQLResultSet* result, bool& raisedException) {
     // right now we are passing result to client, without other processing
     m_client->setResult(result);
+}
+
+bool SQLStatementErrorCallbackHl::handleEvent(SQLTransaction*, SQLError* error) {
+    m_client->setError(error);
+    return false;
 }
 
 }

@@ -96,7 +96,7 @@ class SQLStatementErrorCallbackHl : public SQLStatementErrorCallback {
 public:
     SQLStatementErrorCallbackHl(DatabaseTrackerClientHl* client) : m_client(client) { }
     virtual ~SQLStatementErrorCallbackHl() { }
-    virtual bool handleEvent(SQLTransaction*, SQLError*) { }
+    virtual bool handleEvent(SQLTransaction*, SQLError*);
 private:
     DatabaseTrackerClientHl* m_client;
 };
