@@ -76,7 +76,7 @@ void SQLStatementCallbackHl::handleEvent(SQLTransaction*, SQLResultSet* result, 
 
 bool SQLStatementErrorCallbackHl::handleEvent(SQLTransaction*, SQLError* error) {
     m_client->setError(error);
-    return false;
+    return true;
 }
 
 }
