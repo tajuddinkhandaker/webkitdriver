@@ -76,6 +76,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -479,7 +480,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
   public List<AppCacheEntry> getAppCache()
   {
-    return (List<AppCacheEntry>)jni.getAppCache(controller);
+    List<AppCacheEntry> result = (List<AppCacheEntry>) jni.getAppCache(controller);
+    if(result == null){
+      throw new WebDriverException("Can not get application cache. Timeout exceeded");
+    }
+    return result;
   }
 
   public AppCacheStatus getStatus()
@@ -912,7 +917,14 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
     public Set<String> keySet() {
 
-      throw new WebDriverException("Can not convert Storage to Set");
+      int storageLength = size();
+      Set<String> storageKeySet = new HashSet<String>(storageLength);
+
+      for (int i = 0; i < storageLength; i++) {
+        storageKeySet.add(jni.storageKey(controller, isSession, i));
+      }
+
+      return Collections.unmodifiableSet(storageKeySet);
     }
 
     public void setItem(String key, String value) {

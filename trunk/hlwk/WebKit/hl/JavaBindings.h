@@ -2,6 +2,7 @@
 
 #ifndef _Included_com_example_mywebview_MyWebView
 #define _Included_com_example_mywebview_MyWebView
+#define cacheWaitingTimeout 10
 
 extern "C" {
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_create(JNIEnv *env, jobject obj, jstring userAgent);
