@@ -1959,6 +1959,19 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCache(
     jobject result = env->NewObject(objClass, cid);
 
 #if ENABLE(OFFLINE_WEB_APPLICATIONS)
+    // cacheForMainRequest returns NULL if application cache is not yet downloaded. Check cache
+    // status and if download is in progress wait till it finishes.
+    DOMApplicationCache *cached = drv->GetMainFrame()->document()->domWindow()->applicationCache();
+    if (cached) {
+        double startTime = currentTime();
+        while (cached->status() == ApplicationCacheHost::CHECKING
+                || cached->status() == ApplicationCacheHost::DOWNLOADING) {
+        	Headless::processExpiredTimers();
+    		if (currentTime() - startTime > cacheWaitingTimeout) {
+    			return NULL;
+    		}
+        }
+    }
     DocumentLoader *loader = drv->GetMainFrame()->loader()->activeDocumentLoader();
     ApplicationCache *cache = ApplicationCacheGroup::cacheForMainRequest(loader->request(), loader);
     if (cache) {
