@@ -1691,6 +1691,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getPosition(
     jobject result = 0;
 #if ENABLE(CLIENT_BASED_GEOLOCATION)
     GeolocationPosition* geoPosition = drv->GetFrame()->page()->geolocationController()->lastPosition();
+    if (!geoPosition) return NULL;
 
     jclass objClass = env->FindClass("org/openqa/selenium/html5/Location");
     jmethodID cid = env->GetMethodID(objClass, "<init>", "(DDD)V");
