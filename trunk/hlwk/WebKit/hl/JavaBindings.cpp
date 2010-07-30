@@ -327,6 +327,7 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getDocument(JN
 {
     jlong jresult = 0;
     WebKitDriver *drv = (WebKitDriver*)ref;
+    Headless::processExpiredTimers();
     jresult = (jlong)(drv->GetFrame()->document()->documentElement());
     return jresult;
 }
@@ -335,6 +336,7 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getDocument(JN
 JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getTitle(JNIEnv *env, jobject obj, jlong ref)
 {
     WebKitDriver *drv = (WebKitDriver*)ref;
+    Headless::processExpiredTimers();
     WebCore::String str = drv->GetFrame()->document()->title();
     return env->NewString(str.characters(), str.length());
 }
@@ -344,6 +346,7 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getDOMDump(J
 {
     WebKitDriver *drv = (WebKitDriver*)ref;
 
+    Headless::processExpiredTimers();
     Element *element = drv->GetFrame()->document()->documentElement();
     WebCore::String str;
     if (element && element->isHTMLElement()) {
@@ -357,6 +360,7 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getPageSourc
 {
     WebKitDriver *drv = (WebKitDriver*)ref;
 
+    Headless::processExpiredTimers();
     Element *element = drv->GetFrame()->document()->documentElement();
     WebCore::String str;
     if (element && element->isHTMLElement()) {
@@ -375,6 +379,7 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getUrl(JNIEn
 {
     WebKitDriver *drv = (WebKitDriver*)ref;
     WebCore::String str;
+    Headless::processExpiredTimers();
     KURL url = drv->GetFrame()->loader()->url();
     if (!url.isNull()) {
         str = url.string();
@@ -861,6 +866,7 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_cookies(JNIE
     }
     ExceptionCode ec = 0;
 
+    Headless::processExpiredTimers();
     String cookieStr = doc->cookie(ec);
 
     if (ec) {
@@ -1263,6 +1269,7 @@ JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_goBack(JNIEnv *
 {
     WebKitDriver *drv = (WebKitDriver*)ref;
     drv->GoBack();
+    Headless::processExpiredTimers();
 }
 
 
@@ -1270,6 +1277,7 @@ JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_goForward(JNIEn
 {
     WebKitDriver *drv = (WebKitDriver*)ref;
     drv->GoForward();
+    Headless::processExpiredTimers();
 }
 
 
@@ -1322,7 +1330,7 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_click(JNIEnv *
         element->focus();
     }
     else {
-        // If we click on an element which can not be focused, remve
+        // If we click on an element which can not be focused, remove
         // focus from currently focused element.
         Element *focused = (Element*)element->document()->focusedNode();
         if (focused && element != focused)
@@ -1678,7 +1686,7 @@ JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_setPosition(JNI
     double timestamp = 0;
     double accuracy = 0;
 
-    drv->GetGeolocationClient()->setPosition(GeolocationPosition::create(timestamp, latitude, longitude, accuracy, 
+    drv->GetGeolocationClient()->setPosition(GeolocationPosition::create(timestamp, latitude, longitude, accuracy,
             true, altitude, false, 0, false, 0, false, 0));
     env->DeleteLocalRef(objClass);
 #endif
@@ -1690,6 +1698,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getPosition(
     WebKitDriver *drv = (WebKitDriver*)ref;
     jobject result = 0;
 #if ENABLE(CLIENT_BASED_GEOLOCATION)
+    Headless::processExpiredTimers();
     GeolocationPosition* geoPosition = drv->GetFrame()->page()->geolocationController()->lastPosition();
     if (!geoPosition) return NULL;
 
@@ -1705,6 +1714,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getPosition(
 JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAlertText(JNIEnv *env, jobject obj, jlong ref, jboolean clr)
 {
     WebKitDriver *drv = (WebKitDriver*)ref;
+    Headless::processExpiredTimers();
     Frame *frame = drv->GetMainFrame();
 
     if (!frame) {
@@ -1751,7 +1761,7 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_openDatabase(J
     WebKitDriver* drv = (WebKitDriver*)ref;
 
     ExceptionCode code;
-    PassRefPtr<Database> database = Database::openDatabase(drv->GetFrame()->document(), 
+    PassRefPtr<Database> database = Database::openDatabase(drv->GetFrame()->document(),
             to_string(env, name), to_string(env, version), to_string(env, displayName), size, code);
     Headless::processTimer();
     database->ref();
@@ -1778,7 +1788,7 @@ bool parseSQLArgument(JNIEnv *env, jobject obj, SQLValue &result)
     jclass jintClass = env->FindClass("java/lang/Integer");
     jclass jlongClass = env->FindClass("java/lang/Long");
     jclass jdoubleClass = env->FindClass("java/lang/Double");
-    
+
     jmethodID iid = env->GetMethodID(jintClass, "longValue", "()J");
     jmethodID lid = env->GetMethodID(jlongClass, "longValue", "()J");
     jmethodID did = env->GetMethodID(jdoubleClass, "doubleValue", "()D");
@@ -1858,14 +1868,14 @@ jobject getObjectFromSQLSetRowList(JNIEnv *env, SQLResultSetRowList* set)
     env->DeleteLocalRef(hashClass);
     env->DeleteLocalRef(rowsClass);
     return resultRows;
-} 
+}
 
 
 JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_executeSQL(JNIEnv *env, jobject obj, jlong ref, jlong dbref, jstring query, jobjectArray argv)
 {
     WebKitDriver* drv = (WebKitDriver*)ref;
     Database* database = (Database*)dbref;
-    
+
     Vector<SQLValue> argVector;
     for (int i = 0; i < env->GetArrayLength(argv); i++) {
         jobject argument = env->GetObjectArrayElement(argv, i);
@@ -1895,7 +1905,7 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_executeSQL(J
 
     if (drv->GetSQLClient()->isResultOK()) {
         // we are getting Result set data from interface here. It's basically an
-        // atomic operation but since we work in a single thread here it's OK 
+        // atomic operation but since we work in a single thread here it's OK
         WTFLog(&WebCore::LogStorageAPI, "Creating Result Set");
         jobject rowList =  getObjectFromSQLSetRowList(env, drv->GetSQLClient()->getResult());
         int rowsAffected = drv->GetSQLClient()->rowsAffected();
@@ -1999,20 +2009,20 @@ JNIEXPORT jobject JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAppCache(
                     typeName = "FALLBACK";
                     break;
             }
-        
+
             // If resource type can not be mapped to AppCacheType enum, just skip it
             if (!typeName) {
                 continue;
             }
             // Get AppCacheType object, it will be passed to AppCacheEntry constructor
-            jobject cacheType = env->CallStaticObjectMethod(typeClass, typeMethod, 
+            jobject cacheType = env->CallStaticObjectMethod(typeClass, typeMethod,
                     env->NewStringUTF(typeName));
 
             // Create AppCacheEntry object ...
             String url = it->second->url().string();
             String mimeType = it->second->response().mimeType();
 
-            entry = env->NewObject(entryClass, entryConstructor, 
+            entry = env->NewObject(entryClass, entryConstructor,
                     cacheType,
                     env->NewString(url.characters(), url.length()),
                     env->NewString(mimeType.characters(), mimeType.length())
