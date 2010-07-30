@@ -11,6 +11,6 @@ all: wd
 wd: $(WD_CLASS)
 
 $(DST_DIR)/%.class: $(SRC_DIR)/%.java
-	javac -classpath build:../WebDriver/build/common/common.jar -d $(DST_DIR) $<
+	javac -sourcepath $(SRC_DIR) -classpath build:../WebDriver/build/common/common.jar:../third_party/java/guava/guava-r05.jar -d $(DST_DIR) $<
 
 .PHONY: all wd

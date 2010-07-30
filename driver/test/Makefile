@@ -3,7 +3,7 @@ SRC   := $(NAME).java
 CLASS := $(NAME).class
 
 LIBPATH   := ../../hlwk/WebKitBuild/Release
-CLASSPATH := ../build:../../WebDriver/build/common/common.jar
+CLASSPATH := ../build:../../WebDriver/build/common/common.jar:../../WebDriver/build/support/support.jar:../../third_party/java/guava/guava-r05.jar:../../WebDriver/third_party/java/junit/junit-dep-4.8.1.jar
 
 all: $(CLASS)
 
