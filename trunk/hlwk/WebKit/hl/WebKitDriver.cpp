@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "config.h"
@@ -95,6 +95,11 @@ namespace Headless {
         timer_time = timeSpec;
     }
 
+    /* Wait for nearest callback event time and process event queue.
+     * One of these process timer functions have to be called in all get-functions
+     * which may be used in a waiting loop.
+     * See comment for processExpiredTimers below.
+    */
     bool processTimer() {
         // Process events scheduled from other threads first
         WTF::dispatchFunctionsFromMainThread();
@@ -112,6 +117,11 @@ namespace Headless {
         return false;
     }
 
+    /* This function provides non-blocking processing queue of all callback events in
+     * main thread. So it should be called from all get functions like findElement,
+     * getTitle, etc. Especially when they are used in a loop for waiting changes in
+     * a page. Without such calls all events will be frozen.
+    */
     void processExpiredTimers() {
         // Process events scheduled from other threads first
         WTF::dispatchFunctionsFromMainThread();
@@ -160,7 +170,7 @@ WebKitDriver::WebKitDriver(WebCore::String userAgent) :
     WebCore::InitializeLoggingChannelsIfNecessary();
 
     WebCore::HTMLFrameOwnerElement* parentFrame = 0;
-    
+
     priv = new WebKitDriverPrivate;
 
     WebCore::EditorClientHl* editorClient = new WebCore::EditorClientHl();
@@ -205,7 +215,7 @@ WebKitDriver::WebKitDriver(WebCore::String userAgent) :
     settings->setJavaScriptEnabled(true);
     settings->setJavaScriptCanOpenWindowsAutomatically(true);
     settings->setAllowScriptsToCloseWindows(true);
- 
+
     WebCore::DatabaseTracker::tracker().setClient(priv->dbClient);
     // Initialize path to database and appcache unless already initialized
     if (WebCore::DatabaseTracker::tracker().databaseDirectoryPath().isNull()) {
@@ -307,6 +317,6 @@ void WebKitDriver::SetBusyState (bool isBusy, int who) {
     m_state = (m_state & !who) | (isBusy ? who : 0);
 }
 
-bool WebKitDriver::IsBusy(int who) { 
-    return m_state & who; 
+bool WebKitDriver::IsBusy(int who) {
+    return m_state & who;
 }
