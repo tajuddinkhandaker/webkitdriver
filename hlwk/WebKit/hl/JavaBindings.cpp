@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2010 Google Inc.  All rights reserved.
+ *
+ */
+
+/* All get and test functions have to use call Headless::processTimer() or
+ * Headless::processExpiredTimers() to give control to call-back event
+ * manager. Especially when they may used in a loop. Without such call
+ * event's queue will be frozen.
+ */
+
 #include "config.h"
 #include "ApplicationCache.h"
 #include "ApplicationCacheGroup.h"
