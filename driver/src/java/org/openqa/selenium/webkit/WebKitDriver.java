@@ -24,6 +24,7 @@ import com.google.common.io.InputSupplier;
 
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoAlertPresentException;
@@ -87,6 +88,8 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
         WebStorage, TakesScreenshot {
 
   private static final Logger LOGGER = Logger.getLogger(WebKitDriver.class.getName());
+
+  private static final String USER_AGENT_KEY = "user-agent";
 
   private long default_controller = 0;
   private long controller = 0;
@@ -220,12 +223,12 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     }
   }
 
-
   public WebKitDriver() {
     this(null);
   }
 
-  public WebKitDriver(String userAgent) {
+  public WebKitDriver(Capabilities capabilities) {
+
     if (!WebKitJNI.isMainThread()) {
         if (pipe == null)
             pipe = new Pipe();
@@ -235,6 +238,13 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
                             new Class[] { WebKitInterface.class },
                             handler);
     }
+
+    // Check if a user-agent string is supplied with the capabilities.
+    String userAgent=null;
+    if (capabilities.getCapability(USER_AGENT_KEY) != null) {
+      userAgent = capabilities.getCapability(USER_AGENT_KEY).toString();
+    }
+
     controller = jni.create(userAgent);
     default_controller = controller;
   }

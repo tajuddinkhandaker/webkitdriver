@@ -20,14 +20,14 @@ extra_jars = FileList.new(Dir.glob(extra_jars_include)) do |f|
 end
 
 # Additional webdriver task definitions
-require webdriver_dir + '/rake-tasks/task-gen' 
-require webdriver_dir + '/rake-tasks/checks' 
-require webdriver_dir + '/rake-tasks/zip' 
-require webdriver_dir + '/rake-tasks/java' 
+require webdriver_dir + '/rake-tasks/task-gen'
+require webdriver_dir + '/rake-tasks/checks'
+require webdriver_dir + '/rake-tasks/zip'
+require webdriver_dir + '/rake-tasks/java'
 
 # Build webdriver and its tests
 task :webdriver_build do
-  sh "./go common test_common"
+  sh "./go remote_common test_common"
 end
 
 
@@ -35,7 +35,8 @@ end
 # Build webkitdriver
 java_jar(:name => 'webdriver_hlwk',
          :deps => [:webdriver_build,
-                   webdriver_dir + '/build/common/common.jar'] + extra_third_party_jars,
+                   webdriver_dir +
+                   '/build/common/common.jar'] + extra_third_party_jars,
          :srcs => ["../driver/src/java/**/*.java"])
 
 # Build webkitdriver tests
@@ -43,7 +44,8 @@ java_test(:name => "webdriver_hlwk_test",
           :srcs  => [ webkit_dir + '/test/java/**/*.java' ],
           :deps =>  [ :webdriver_hlwk,
                       webdriver_dir + '/build/common/test.jar',
-                      webdriver_dir + '/build/common/common.jar'
+                      webdriver_dir + '/build/common/common.jar',
+                      webdriver_dir + '/build/remote/common/common.jar'
                     ] + extra_jars)
 
 # Helper task to cd to webdriver root
