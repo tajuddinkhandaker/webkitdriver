@@ -31,8 +31,8 @@ public class WebKitDriverTestSuite extends TestCase {
 
     return new TestSuiteBuilder()
     .addSourceDir("../driver")
-    .addSourceDir("remote")
-    .addSourceDir("common")
+    //.addSourceDir("remote")
+    //.addSourceDir("common")
     .usingDriver(WebKitDriver.class)
     .keepDriverInstance()
     .includeJavascriptTests()

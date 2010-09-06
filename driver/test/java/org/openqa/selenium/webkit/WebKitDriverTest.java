@@ -18,11 +18,11 @@ package org.openqa.selenium.webkit;
 
 import junit.framework.TestCase;
 
-import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.DesiredCapabilities;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 
 /**
@@ -30,6 +30,8 @@ import java.util.Map;
  *
  */
 public class WebKitDriverTest extends TestCase {
+
+  WebKitDriver driver1 = new WebKitDriver();
 
   public void testConstructWebKitDriverWithDefaultUserAgent() {
     WebKitDriver driver = new WebKitDriver();
@@ -47,6 +49,24 @@ public class WebKitDriverTest extends TestCase {
     WebKitDriver driver = new WebKitDriver(capabilities);
 
     assertEquals(getDriverUserAgent(driver), "A-USER-AGENT");
+  }
+
+  public void testAllowsAccessFromAChildThread() throws InterruptedException {
+    final CountDownLatch latch = new CountDownLatch(1);
+    Thread myThread = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          driver1.get("http://www.google.com");
+          WebElement element = driver1.findElement(By.name("q"));
+          assertEquals("input", element.getTagName());
+        } finally {
+          latch.countDown();
+        }
+      }
+    });
+    myThread.start();
+    latch.await();
   }
 
   private final static String getDriverUserAgent(WebKitDriver driver) {
