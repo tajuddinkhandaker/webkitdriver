@@ -72,12 +72,12 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -223,25 +223,37 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     }
   }
 
+  /**
+   * Create a WebKitDriver instance.
+   */
   public WebKitDriver() {
     this(null);
   }
 
+  /**
+   * Creates a new WebKitDriver instance with the given capabilities. Currently only the
+   * "user-agent" is honored. If this is set, then the created WebKitDriver instance will have this
+   * User-Agent string.
+   *
+   * If a capability with no user-agent strings set is provided, then the created WebKitDriver
+   * instance will use the default Apple WebKit user-agent.
+   *
+   * @param capabilities The {@link Capabilities} that specifies the properties of the WebKitDriver
+   *     instance to be created.
+   */
   public WebKitDriver(Capabilities capabilities) {
-
-    if (!WebKitJNI.isMainThread()) {
-        if (pipe == null)
-            pipe = new Pipe();
-        Forwarder handler = new Forwarder(this);
-        jni = (WebKitInterface)Proxy.newProxyInstance(
-                            WebKitInterface.class.getClassLoader(),
-                            new Class[] { WebKitInterface.class },
-                            handler);
-    }
+    // Create new WebkitDriver process, and establish socket connection with it.
+    if (pipe == null)
+      pipe = new Pipe();
+    Forwarder handler = new Forwarder(this);
+    jni = (WebKitInterface)Proxy.newProxyInstance(
+        WebKitInterface.class.getClassLoader(),
+        new Class[] { WebKitInterface.class },
+        handler);
 
     // Check if a user-agent string is supplied with the capabilities.
-    String userAgent=null;
-    if (capabilities.getCapability(USER_AGENT_KEY) != null) {
+    String userAgent = null;
+    if (capabilities != null && capabilities.getCapability(USER_AGENT_KEY) != null) {
       userAgent = capabilities.getCapability(USER_AGENT_KEY).toString();
     }
 

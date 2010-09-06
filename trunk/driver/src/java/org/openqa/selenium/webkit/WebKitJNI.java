@@ -40,11 +40,6 @@ public class WebKitJNI implements WebKitInterface {
   private static final WebKitJNI INSTANCE = new WebKitJNI();
   private static java.lang.Thread mainThread = java.lang.Thread.currentThread();
 
-  public static synchronized boolean isMainThread()
-  {
-    return mainThread.equals(java.lang.Thread.currentThread());
-  }
-
   /**
    * Delete cookie with name for current document.
    * Delete all cookies for current document if name is empty.

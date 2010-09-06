@@ -35,8 +35,9 @@ end
 # Build webkitdriver
 java_jar(:name => 'webdriver_hlwk',
          :deps => [:webdriver_build,
-                   webdriver_dir +
-                   '/build/common/common.jar'] + extra_third_party_jars,
+                   webdriver_dir + '/build/common/common.jar',
+                   webdriver_dir + '/build/remote/common/common.jar'
+                  ] + extra_third_party_jars,
          :srcs => ["../driver/src/java/**/*.java"])
 
 # Build webkitdriver tests
