@@ -134,7 +134,6 @@ using namespace WebCore;
 #define to_string(env, str) (env->GetStringChars(str, NULL))
 #define to_window_handle(drv) (String::number((jlong)(drv)))
 
-
 static bool frameIsLoading(Frame *frame)
 {
     if (frame->loader()->isLoading()) {
@@ -144,23 +143,24 @@ static bool frameIsLoading(Frame *frame)
     if (client->inRedirect()) {
         return true;
     }
+
     int count = frame->tree()->childCount();
     for (int i = 0; i < count; i++) {
         if (frameIsLoading(frame->tree()->child(i))) {
             return true;
         }
     }
+
     return false;
 }
-
 
 static bool waitSingleFrame(Frame *frame)
 {
     while (Headless::processTimer() && frameIsLoading(frame)) {
         WTFLog(&LogLoading, "Wait for loaded frame\n");
     };
-    // TODO: return frame loading result - true if loaded successfully, false otherwise
-    return true;
+    FrameLoaderClientHl *client = (FrameLoaderClientHl*)frame->loader()->client();
+    return client->error().isNull();
 }
 
 
@@ -249,46 +249,46 @@ static IntRect getBoundingBoxSize(Node* node)
 }
 
 
-static bool isVisible(Node* node, bool zeroSizeInvisible = true, bool start = true, bool childVisibility = false)
+static bool isVisible(Node* node)
 {
-    if (!node) {
-        return childVisibility;
-    }
-    bool started = start;
-    bool visible = childVisibility;
-    bool isNone = false;
+    Document *doc = node->document();
+    Node* current = node;
+    bool explicitlyVisible = false;
+    String str;
 
-    Element *element = (Element*)node;
-    // Probably it's better to use renderer to check visibility, but currently
-    // we have an issue with selectors they does not have renderer
-    if (node->isElementNode()) {
-        started = false;
-        IntRect rect = getBoundingBoxSize(node);
-        // magic Title tag which is expected to be visible despite display=none
-        if (node->nodeName() == "TITLE") {
-            return true;
+    while (current && current != doc->documentElement()) {
+        RefPtr<CSSStyleDeclaration> style = ((Element*)current)->style();
+        if (style) {
+            str = style->getPropertyValue(cssPropertyID("display"));
+            if (str == "none") {
+                return false;
+            }
+            str = style->getPropertyValue(cssPropertyID("visibility"));
+            explicitlyVisible = explicitlyVisible || (str == "visible");
+            if (!explicitlyVisible && (str == "hidden")) {
+                return false;
+            }
         }
-        else if (getProperty((Element*)node, String("display")) == "none") {
-            visible =  false;
-            isNone = true;
+        RefPtr<CSSComputedStyleDeclaration> comp = computedStyle(node);
+        if (comp) {
+            str = comp->getPropertyValue(cssPropertyID("display"));
+            if (str == "none") {
+                return false;
+            }
+            str = comp->getPropertyValue(cssPropertyID("visibility"));
+            explicitlyVisible = explicitlyVisible || (str == "visible");
+            if (!explicitlyVisible && (str == "hidden")) {
+                return false;
+            }
         }
-        else if (zeroSizeInvisible && node->renderer() && !(rect.height() && rect.width())) {
-            RenderBoxModelObject* render = (RenderBoxModelObject*)node->renderer();
-            visible = false;
-        }
-        else if (getProperty((Element*)node, String("visibility")) == "visible") {
-            visible = true;
-        }
-        else if (getProperty((Element*)node, String("visibility")) == "hidden") {
-            visible = false;
-        }
+        current = current->parentNode();
     }
-    if (!start && !isNone) {
-        visible = childVisibility;
+    if (((Element*)node)->hasTagName(HTMLNames::optionTag)) {
+        return true;
     }
-    return isVisible(node->parentNode(), zeroSizeInvisible, started, visible);
+    return ((Element*)node)->offsetHeight() > 0  &&
+           ((Element*)node)->offsetWidth() > 0;
 }
-
 
 jobject createWebDriverException(JNIEnv* env, const String& errorMessage)
 {
@@ -343,7 +343,6 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_get(JNIEnv *en
     drv->GetMainFrame()->loader()->load(kurl, false);
     return waitFrameLoaded(drv->GetMainFrame());
 }
-
 
 JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getDocument(JNIEnv *env, jobject obj, jlong ref)
 {
@@ -803,7 +802,7 @@ void getTextFromNode(Node* node, WebCore::String& input, WebCore::String& output
     if (!node || node->hasTagName(HTMLNames::scriptTag)) {
         return;
     }
-    if (node->isTextNode() && isVisible(node, false)) {
+    if (node->isTextNode() && isVisible(node->parentNode())) {
         input += node->textContent();
     }
     // block level node is a /n in resulting text
