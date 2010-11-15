@@ -35,6 +35,7 @@
 #include "FileChooser.h"
 #include "FloatRect.h"
 #include "Frame.h"
+#include "FrameView.h"
 #include "Page.h"
 #include "Geolocation.h"
 #include "PageGroup.h"
@@ -298,9 +299,9 @@ PlatformPageClient ChromeClientHl::platformPageClient() const
     return 0;
 }
 
-void ChromeClientHl::contentsSizeChanged(Frame*, const IntSize&) const
+void ChromeClientHl::contentsSizeChanged(Frame* frame, const IntSize&) const
 {
-    notImplemented();
+    frame->view()->layout();
 }
 
 void ChromeClientHl::scrollBackingStore(int dx, int dy, 
