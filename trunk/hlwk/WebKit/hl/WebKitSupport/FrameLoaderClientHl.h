@@ -220,6 +220,7 @@ namespace WebCore {
         virtual void registerForIconNotification(bool listen = true);
         
         virtual bool shouldUsePluginDocument(const String &mimeType) const;
+        const ResourceError& error() { return m_error; }
 
     private:
         WebKitDriver *m_webFrame;
