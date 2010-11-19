@@ -66,8 +66,8 @@ js_includes = [
              'JavaScriptCore/DerivedSources',
            ]
 
-jni_includes = [ '/usr/lib/jvm/java-6-sun/include',
-                 '/usr/lib/jvm/java-6-sun/include/linux' ]
+jni_includes = [ ENV['JAVA_HOME'] + '/include',
+                 ENV['JAVA_HOME'] + '/include/linux' ]
 
 extra_libraries 'curl', 'xslt'
 extra_libraries_pkgconfig 'sqlite3'
