@@ -39,7 +39,6 @@
 #include "FrameView.h"
 #include "FrameTree.h"
 #include "PluginView.h"
-#include "HTMLBodyElement.h"
 #include "HTMLNames.h"
 #include "HTMLFormElement.h"
 #include "HTMLFrameOwnerElement.h"
@@ -671,24 +670,7 @@ void FrameLoaderClientHl::dispatchDidReceiveContentLength(DocumentLoader* loader
 
 void FrameLoaderClientHl::dispatchDidFinishLoading(DocumentLoader* loader, unsigned long)
 {
-    // If document is still being parsed at the moment, it was implicitly open from onload
-    // event. Close it.
-    if (m_frame->document()->parsing()) {
-        m_frame->document()->close();
-    }
-    // For some reason, body tag is not created for empty document. Thought there is
-    // a code to create it in WebCore/dom/Document.cpp(implicitClose), it is not invoked because
-    // tokenizer is cleared at that point. Provide workaround for now.
-    // TODO: find a better way to handle empty urls.
-    if (!m_frame->document()->body()) {
-        ExceptionCode ec;
-        Node *documentElement = m_frame->document()->documentElement();
-        if (documentElement) {
-            documentElement->appendChild(new HTMLBodyElement(HTMLNames::bodyTag, m_frame->document()), ec);
-        }
-        if (!ec && !m_frame->document()->attached())
-            m_frame->document()->ContainerNode::attach();
-    }
+    notImplemented();
 }
 
 void FrameLoaderClientHl::dispatchDidFailLoading(DocumentLoader*, unsigned long, const ResourceError& error)
@@ -709,7 +691,7 @@ void FrameLoaderClientHl::dispatchDidLoadResourceByXMLHttpRequest(unsigned long,
 
 void FrameLoaderClientHl::dispatchDidFailProvisionalLoad(const ResourceError& error)
 {
-  notImplemented();
+    m_error = error;
 }
 
 void FrameLoaderClientHl::dispatchDidFailLoad(const ResourceError& error)

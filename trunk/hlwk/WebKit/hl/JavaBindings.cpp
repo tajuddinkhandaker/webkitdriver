@@ -42,6 +42,7 @@ limitations under the License.
 #include "DocumentLoader.h"
 #include "FrameView.h"
 #include "HitTestResult.h"
+#include "HTMLBodyElement.h"
 #include "HTMLFrameOwnerElement.h"
 #include "HTMLElement.h"
 #include "HTMLMediaElement.h"
@@ -159,6 +160,26 @@ static bool waitSingleFrame(Frame *frame)
     while (Headless::processTimer() && frameIsLoading(frame)) {
         WTFLog(&LogLoading, "Wait for loaded frame\n");
     };
+
+    // If document is still being parsed at the moment, it was implicitly open from onload
+    // event. Close it.
+    if (frame->document()->parsing()) {
+        frame->document()->close();
+    }
+    // For some reason, body tag is not created for empty document. Thought there is
+    // a code to create it in WebCore/dom/Document.cpp(implicitClose), it is not invoked because
+    // tokenizer is cleared at that point. Provide workaround for now.
+    // TODO: find a better way to handle empty urls.
+    if (!frame->document()->body()) {
+        ExceptionCode ec;
+        Node *documentElement = frame->document()->documentElement();
+        if (documentElement) {
+            documentElement->appendChild(new HTMLBodyElement(HTMLNames::bodyTag, frame->document()), ec);
+        }
+        if (!ec && !frame->document()->attached())
+            frame->document()->ContainerNode::attach();
+    }
+
     FrameLoaderClientHl *client = (FrameLoaderClientHl*)frame->loader()->client();
     return client->error().isNull();
 }
