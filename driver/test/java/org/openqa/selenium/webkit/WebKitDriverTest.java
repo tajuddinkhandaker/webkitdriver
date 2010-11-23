@@ -20,6 +20,7 @@ import junit.framework.TestCase;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.remote.DesiredCapabilities;
 
 import java.util.concurrent.CountDownLatch;
@@ -67,6 +68,32 @@ public class WebKitDriverTest extends TestCase {
     });
     myThread.start();
     latch.await();
+  }
+  public void testQuitsWebDriverProperly() {
+    // Call quit on the driver.
+    driver1.quit();
+    try {
+      driver1.get("http://www.google.com");
+      fail("Should have thrown an exception here, since the driver was quit.");
+    } catch (WebDriverException exc) {
+     // Do nothing, this is expected.
+    }
+    
+    // Re-instantiating the object however should work fine.
+    driver1 = new WebKitDriver();
+    driver1.get("http://www.google.com");
+    assertTrue(driver1.getTitle().contains("Google"));
+  }
+
+  public void testQuitsWhenCloseCalledOnLastWindow() throws InterruptedException {
+    // Call quit on the driver.
+    driver1.close();
+    try {
+      driver1.get("http://www.google.com");
+      fail("Should have thrown an exception here, since the driver was closed.");
+    } catch (WebDriverException exc) {
+      // Do nothing, this is expected.
+    }
   }
 
   private final static String getDriverUserAgent(WebKitDriver driver) {
