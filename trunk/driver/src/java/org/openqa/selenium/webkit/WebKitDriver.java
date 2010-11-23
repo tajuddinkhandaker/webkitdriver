@@ -196,7 +196,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             }
 
             // Receive response and deserialize it
-            return WebKitSerializer.deserialize(dataIn, parent);
+            Object result = WebKitSerializer.deserialize(dataIn, parent);
+            if (method.getName().equals("destroy") && (Long)(args[0]) == 0) {
+                dataSocket.close();
+            }
+            return result;
         } catch (Exception e) {
             String wrapperOutput = "";
             try {
@@ -351,7 +355,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     // available window and make it default.
     if (handles.isEmpty()) {
       // All windows are closed, consider driver quit
-      controller = default_controller = 0;
+      quit();
     } else {
       wid = handles.iterator().next();
       switchTo().window(wid);
@@ -368,8 +372,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       }
       controller = 0;
       default_controller = 0;
-      jni.deleteCookie(controller, null);
     }
+    jni.deleteCookie(controller, null);
+    // This call does nothing when called for single process webkitdriver.
+    // It is used to terminate webkitdriver child process in multiprocess or remote use case
+    jni.destroy(0);
   }
 
   public Set<String> getWindowHandles() {
