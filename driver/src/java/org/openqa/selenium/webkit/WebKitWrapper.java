@@ -57,7 +57,8 @@ public class WebKitWrapper {
             DataOutputStream out = new DataOutputStream(dataSocket.getOutputStream());
             DataInputStream in   = new DataInputStream(dataSocket.getInputStream());
         
-            while (true) {
+            // Handle serialized data while communication socket is open.
+            while (dataSocket.isConnected()) {
                 Object res;
                 try {
                     res = WebKitSerializer.invokeMethodFromStream(in);
