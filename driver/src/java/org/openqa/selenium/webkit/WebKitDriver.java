@@ -142,7 +142,6 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   {
     private Process wrapper;
     private BufferedReader in;
-    private BufferedReader err;
     private Socket dataSocket;
     private DataOutputStream dataOut;
     private DataInputStream dataIn;
@@ -164,6 +163,8 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
               "-classpath", classPath, "-Djava.library.path=" + System.getProperty("java.library.path"),
               "org.openqa.selenium.webkit.WebKitWrapper", Integer.toString(pipe.getServerPort()));
 
+        pb.redirectErrorStream(true);
+
         String sep = System.getProperty("path.separator");
         String[] paths = System.getProperty("java.class.path").split(sep);
 
@@ -173,7 +174,6 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             dataOut = new DataOutputStream(dataSocket.getOutputStream());
             dataIn  = new DataInputStream(dataSocket.getInputStream());
             in  = new BufferedReader(new InputStreamReader(wrapper.getInputStream()));
-            err = new BufferedReader(new InputStreamReader(wrapper.getErrorStream()));
             isRunning = true;
         } catch (IOException e) {
             throw new WebDriverException("WebKitDriver wrapper could not be spawned: "
