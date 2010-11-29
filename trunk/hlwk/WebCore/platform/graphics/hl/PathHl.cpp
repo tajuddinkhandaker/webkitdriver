@@ -50,7 +50,8 @@ Path::Path()
 
 Path::~Path()
 {
-    clear();
+    ASSERT(m_path);
+    delete m_path;
 }
 
 Path::Path(const Path& path)
@@ -87,9 +88,8 @@ Path& Path::operator=(const Path&)
 }
 
 void Path::clear() 
-{ 
-    if (m_path)
-        delete m_path;
+{
+    notImplemented();
 }
 
 void Path::moveTo(const FloatPoint& point) 

@@ -33,6 +33,8 @@ import java.util.concurrent.CountDownLatch;
 public class WebKitDriverTest extends TestCase {
 
   WebKitDriver driver1 = new WebKitDriver();
+  final String webPath = System.getProperty("user.dir").replaceFirst("[^/]+$", "driver/src/web/");
+
 
   public void testConstructWebKitDriverWithDefaultUserAgent() {
     WebKitDriver driver = new WebKitDriver();
@@ -94,6 +96,12 @@ public class WebKitDriverTest extends TestCase {
     } catch (WebDriverException exc) {
       // Do nothing, this is expected.
     }
+  }
+
+  public void testCanvasPath() {
+    WebKitDriver wd = new WebKitDriver();
+    wd.get("file://" + webPath + "canvas2d.html");
+    wd.quit();
   }
 
   private final static String getDriverUserAgent(WebKitDriver driver) {
