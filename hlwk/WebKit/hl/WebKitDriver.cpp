@@ -52,6 +52,7 @@ limitations under the License.
 #include "JSDOMBinding.h"
 #include <runtime/JSValue.h>
 #include <runtime/UString.h>
+#include <runtime/InitializeThreading.h>
 
 #include "GeolocationControllerClientHl.h"
 #include "EditorClientHl.h"
@@ -155,7 +156,7 @@ WebKitDriver::WebKitDriver(WebCore::String userAgent) :
     m_loading(0),
     priv() {
 
-    WTF::initializeThreading();
+    JSC::initializeThreading();
     WebCore::InitializeLoggingChannelsIfNecessary();
 
     WebCore::HTMLFrameOwnerElement* parentFrame = 0;
