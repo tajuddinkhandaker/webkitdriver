@@ -213,7 +213,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
                 };
 
                 wrapperOutput = CharStreams.toString(
-                        CharStreams.newReaderSupplier(wrapperInputSupplier, Charset.defaultCharset()));
+                    CharStreams.newReaderSupplier(wrapperInputSupplier, Charset.defaultCharset()));
 
             } catch (IOException ioExc) {
                 // Error while reading error output stream.
