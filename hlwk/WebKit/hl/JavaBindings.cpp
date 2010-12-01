@@ -1786,6 +1786,7 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getAlertText
 
 JNIEXPORT jboolean JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_online(JNIEnv *env, jobject obj)
 {
+    Headless::processExpiredTimers();
     return networkStateNotifier().onLine();
 }
 
@@ -2156,4 +2157,9 @@ JNIEXPORT jstring JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_storageSetVa
         }
     }
     return 0;
+}
+
+JNIEXPORT void JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_processEvents(JNIEnv *env, jobject obj)
+{
+    Headless::processExpiredTimers();
 }

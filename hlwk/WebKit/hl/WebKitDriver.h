@@ -52,6 +52,7 @@ class WebKitDriver
 public:
     WebKitDriver(WebCore::String userAgent=WebCore::String());
 
+    static bool initialize();
     static void cleanup();
     
     ~WebKitDriver();
