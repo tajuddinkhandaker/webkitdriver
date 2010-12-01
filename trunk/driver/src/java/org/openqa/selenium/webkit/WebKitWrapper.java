@@ -36,6 +36,7 @@ package org.openqa.selenium.webkit;
 
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.webkit.WebKitSerializer;
+import org.openqa.selenium.webkit.WebKitJNI;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -60,6 +61,20 @@ public class WebKitWrapper {
             // Handle serialized data while communication socket is open.
             while (dataSocket.isConnected()) {
                 Object res;
+
+                while (in.available() == 0 ) {
+                    long startTime = System.currentTimeMillis();
+                    WebKitJNI.getInstance().processEvents();
+                    long timeToWait = 50 - (System.currentTimeMillis() - startTime);
+                    if (timeToWait > 0) {
+                        try { 
+                            Thread.sleep(timeToWait);
+                        } catch(InterruptedException ignore) { 
+                            break;
+                        }
+                    }
+                }
+
                 try {
                     res = WebKitSerializer.invokeMethodFromStream(in);
                 } catch (Exception e) {

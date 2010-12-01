@@ -317,7 +317,6 @@ void FrameLoaderClientHl::dispatchDidFinishLoad()
     notImplemented();
 }
 
-
 void FrameLoaderClientHl::dispatchDidFirstLayout()
 {
     notImplemented();

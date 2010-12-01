@@ -77,6 +77,8 @@ limitations under the License.
 #define MaximumTextSizeMultiplier       3.0f
 #define TextSizeMultiplierRatio         1.2f
 
+static bool initialized = WebKitDriver::initialize();
+
 namespace Headless {
     static void (*timer_callback)(void) = NULL;
     double timer_time = 0;
@@ -124,6 +126,25 @@ namespace Headless {
 
 int WebKitDriver::instances = 0;
 
+bool WebKitDriver::initialize()
+{
+    JSC::initializeThreading();
+    WebCore::InitializeLoggingChannelsIfNecessary();
+
+    // Initialize path to database and appcache unless already initialized
+    // FIXME: unix-specific code below
+    char tempDirTemplate[] = "/tmp/webkitdriverXXXXXX";
+    char *tempDirName = mktemp(tempDirTemplate);
+    if (tempDirName) {
+        WebCore::String tempDir = WebCore::String::fromUTF8(tempDirName);
+        WebCore::DatabaseTracker::tracker().setDatabaseDirectoryPath(tempDir);
+        WebCore::cacheStorage().setCacheDirectory(tempDir);
+    } else {
+        WTFLog(&WebCore::LogStorageAPI, "Failed to initialize temporary directory, storage API disabled");
+    }
+    return true;
+}
+
 // Clean up temporary files and directories if exist
 void WebKitDriver::cleanup()
 {
@@ -155,9 +176,6 @@ WebKitDriver::WebKitDriver(WebCore::String userAgent) :
     m_beingDestroyed(false),
     m_loading(0),
     priv() {
-
-    JSC::initializeThreading();
-    WebCore::InitializeLoggingChannelsIfNecessary();
 
     WebCore::HTMLFrameOwnerElement* parentFrame = 0;
 
@@ -207,19 +225,6 @@ WebKitDriver::WebKitDriver(WebCore::String userAgent) :
     settings->setAllowScriptsToCloseWindows(true);
 
     WebCore::DatabaseTracker::tracker().setClient(priv->dbClient);
-    // Initialize path to database and appcache unless already initialized
-    if (WebCore::DatabaseTracker::tracker().databaseDirectoryPath().isNull()) {
-        // FIXME: unix-specific code below
-        char tempDirTemplate[] = "/tmp/webkitdriverXXXXXX";
-        char *tempDirName = mktemp(tempDirTemplate);
-        if (tempDirName) {
-            WebCore::String tempDir = WebCore::String::fromUTF8(tempDirName);
-            WebCore::DatabaseTracker::tracker().setDatabaseDirectoryPath(tempDir);
-            WebCore::cacheStorage().setCacheDirectory(tempDir);
-        } else {
-            WTFLog(&WebCore::LogStorageAPI, "Failed to initialize temporary directory, storage API disabled");
-        }
-    }
     setDatabaseEnabled(true);
     instances++;
     m_isInitialized = true;

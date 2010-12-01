@@ -630,6 +630,12 @@ public class WebKitJNI implements WebKitInterface {
    */
   public native Object storageSetValue(long ref, boolean session, String key, String value);
 
+  /**
+   * Process WebKit timers and background events
+   *
+   */
+  public native void processEvents();
+
   static {
     System.loadLibrary("hlwk");
   }
