@@ -240,12 +240,12 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
   public WebElement findElementById(String id) {
     assertElementNotStale();
-    return findElementByXPath(".//*[@id ='" + id +"']");
+    return findElementByXPath(".//*[@id =\"" + id + "\"]");
   }
 
   public List<WebElement> findElementsById(String id) {
     assertElementNotStale();
-    return findElementsByXPath(".//*[@id ='" + id +"']");
+    return findElementsByXPath(".//*[@id =\"" + id + "\"]");
   }
 
   public WebElement findElementByXPath(String xpathExpr) {
