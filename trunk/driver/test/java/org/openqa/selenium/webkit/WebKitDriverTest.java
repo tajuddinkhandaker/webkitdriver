@@ -32,9 +32,22 @@ import java.util.concurrent.CountDownLatch;
  */
 public class WebKitDriverTest extends TestCase {
 
-  WebKitDriver driver1 = new WebKitDriver();
+  WebKitDriver driver1;
   final String webPath = System.getProperty("user.dir").replaceFirst("[^/]+$", "driver/src/web/");
 
+  public void setUp() {
+    driver1 = new WebKitDriver();
+  }
+
+  @Override
+  public void runTest() throws java.lang.Throwable {
+    System.out.println(getName());
+    super.runTest();
+  }
+
+  public void tearDown() {
+    driver1.quit();
+  }
 
   public void testConstructWebKitDriverWithDefaultUserAgent() {
     WebKitDriver driver = new WebKitDriver();
@@ -71,6 +84,7 @@ public class WebKitDriverTest extends TestCase {
     myThread.start();
     latch.await();
   }
+
   public void testQuitsWebDriverProperly() {
     // Call quit on the driver.
     driver1.quit();
@@ -87,6 +101,7 @@ public class WebKitDriverTest extends TestCase {
     assertTrue(driver1.getTitle().contains("Google"));
   }
 
+  
   public void testQuitsWhenCloseCalledOnLastWindow() throws InterruptedException {
     // Call quit on the driver.
     driver1.close();
