@@ -57,12 +57,16 @@ public class WebKitWrapper {
             dataSocket.setTcpNoDelay(true);
             DataOutputStream out = new DataOutputStream(dataSocket.getOutputStream());
             DataInputStream in   = new DataInputStream(dataSocket.getInputStream());
+
+            boolean endOfSession = false;
         
             // Handle serialized data while communication socket is open.
-            while (dataSocket.isConnected()) {
+            while (!endOfSession) {
                 Object res;
-
-                while (in.available() == 0 ) {
+                
+                // Process background events when idle. Idle interval 
+                // can be up to 5 seconds.
+                for (int i = 0; in.available() == 0 && i < 100; i++) {
                     long startTime = System.currentTimeMillis();
                     WebKitJNI.getInstance().processEvents();
                     long timeToWait = 50 - (System.currentTimeMillis() - startTime);
@@ -90,6 +94,11 @@ public class WebKitWrapper {
                     WebKitSerializer.serialize(out, res);
                 }
                 out.flush();
+                try {
+                    endOfSession = in.readBoolean();
+                } catch (IOException e) {
+                    endOfSession = true;
+                }
             }
         } catch (IOException e) {
             System.out.println("Wrapper finished: " + e.getMessage());
