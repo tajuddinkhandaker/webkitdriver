@@ -185,6 +185,7 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
         if (!isRunning) {
            throw new WebDriverException("Child process is not running");
         }
+        boolean endOfSession = false;
         try {
             // Serialize and send request to remote process
             WebKitSerializer.putMethodIntoStream(dataOut, method, args);
@@ -198,13 +199,15 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             // Receive response and deserialize it
             Object result = WebKitSerializer.deserialize(dataIn, parent);
             if (method.getName().equals("destroy") && (Long)(args[0]) == 0) {
-                dataSocket.close();
+                endOfSession = true;
             }
+            dataOut.writeBoolean(endOfSession);
             return result;
         } catch (Exception e) {
             String wrapperOutput = "";
             try {
                 isRunning = false;
+                //dataSocket.close();
                 InputSupplier<InputStream> wrapperInputSupplier = new InputSupplier<InputStream>() {
                   @Override
                   public InputStream getInput() {
@@ -254,7 +257,6 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
         WebKitInterface.class.getClassLoader(),
         new Class[] { WebKitInterface.class },
         handler);
-
     // Check if a user-agent string is supplied with the capabilities.
     String userAgent = null;
     if (capabilities != null && capabilities.getCapability(USER_AGENT_KEY) != null) {
