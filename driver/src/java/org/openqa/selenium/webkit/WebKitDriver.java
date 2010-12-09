@@ -890,6 +890,10 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       public String getText() {
         return jni.getAlertText(controller, false);
       }
+
+      public void sendKeys(String keys) {
+        throw new UnsupportedOperationException("Send keys is not yet support on alerts.");
+      }
   }
 
   class WebKitTimeouts implements Timeouts {
@@ -897,6 +901,10 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
         WebKitDriver.this.implicitWait =
             TimeUnit.MILLISECONDS.convert(Math.max(0, time), unit);
         return this;
+      }
+
+      public Timeouts setScriptTimeout(long time, java.util.concurrent.TimeUnit unit) {
+        throw new UnsupportedOperationException("Setting script timeout is not supported.");
       }
   }
 
@@ -1005,6 +1013,15 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
       String dump = jni.getDOMDump(controller);
       String base64str = new Base64Encoder().encode(dump.getBytes());
       return target.convertFromBase64Png(base64str);
+  }
+
+  /* (non-Javadoc)
+   * @see org.openqa.selenium.JavascriptExecutor#executeAsyncScript(java.lang.String, java.lang.Object[])
+   */
+  @Override
+  public Object executeAsyncScript(String script, Object... args) {
+    throw new UnsupportedOperationException("Async script execution is not supported by "
+        + "WebKitDriver.");
   }
 
 }
