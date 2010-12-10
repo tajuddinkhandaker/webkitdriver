@@ -209,6 +209,9 @@ if (our_tasks & %w{clean clean_derived dist_clean}).empty? || ! (our_tasks & %w{
               # We use ICU
                'WebCore/platform/text/TextEncodingDetectorNone.cpp',
                'WebCore/rendering/RenderMediaControls.cpp',
+              # Disable special handling of search input field as described
+              # in issue 9.
+               'WebCore/rendering/RenderTextControlSingleLine.cpp',
                'WebCore/bridge/test*.cpp',
                'WebCore/DerivedSources/CSSPropertyNames.cpp',
                'WebCore/DerivedSources/DocTypeStrings.cpp',
