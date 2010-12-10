@@ -600,6 +600,14 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
 
         throw new NoAlertPresentException();
       }
+
+    /* (non-Javadoc)
+     * @see org.openqa.selenium.WebDriver.TargetLocator#frame(org.openqa.selenium.WebElement)
+     */
+    @Override
+    public WebDriver frame(WebElement element) {
+      throw new UnsupportedOperationException("Finding frame by element is not supported.");
+    }
   }
 
   private class WebKitNavigation implements Navigation {
