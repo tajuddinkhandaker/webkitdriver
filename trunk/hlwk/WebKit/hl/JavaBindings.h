@@ -40,6 +40,11 @@ extern "C" {
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementsByXpath
     (JNIEnv *env, jobject obj, jlong ref, jstring query);
 
+    JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementByCssSelector
+    (JNIEnv *env, jobject obj, jlong ref, jstring query);
+    JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementsByCssSelector
+    (JNIEnv *env, jobject obj, jlong ref, jstring query);
+
     //NodeList
     JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_nodeListLength
     (JNIEnv *env, jobject obj, jlong ref);

@@ -50,6 +50,7 @@ import org.openqa.selenium.RenderedWebElement;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.ElementNotVisibleException;
+import org.openqa.selenium.internal.FindsByCssSelector;
 import org.openqa.selenium.internal.FindsById;
 import org.openqa.selenium.internal.FindsByLinkText;
 import org.openqa.selenium.internal.FindsByTagName;
@@ -71,8 +72,8 @@ import static org.openqa.selenium.Keys.ENTER;
 import static org.openqa.selenium.Keys.RETURN;
 
 public class WebKitWebElement implements WebElement, RenderedWebElement,
-    FindsById, FindsByLinkText, FindsByXPath, FindsByTagName, SearchContext,
-    WrapsDriver {
+    FindsById, FindsByLinkText, FindsByXPath, FindsByTagName, FindsByCssSelector,
+    SearchContext, WrapsDriver {
 
   protected long element;
   protected WebKitDriver parent;
@@ -255,10 +256,23 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
   public List<WebElement> findElementsByXPath(String xpathExpr) {
     assertElementNotStale();
-    if (xpathExpr.startsWith("//") && !xpathExpr.startsWith("//html")) {
-      xpathExpr = "." + xpathExpr;
-    }
     return fromNodeList (parent.jni().getElementsByXpath(element, xpathExpr));
+  }
+
+  public WebElement findElementByCssSelector(String selector) {
+    assertElementNotStale();
+    long ref = parent.jni().getElementByCssSelector(element, selector);
+    if (ref != 0) {
+       return new WebKitWebElement(parent, ref);
+    }
+    else {
+      throw new NoSuchElementException(String.format("Cannot find element by CSS selector"));
+    }
+  }
+
+  public List<WebElement> findElementsByCssSelector(String selector) {
+    assertElementNotStale();
+    return fromNodeList (parent.jni().getElementsByCssSelector(element, selector));
   }
 
   public WebElement findElementByLinkText(String linkText) {

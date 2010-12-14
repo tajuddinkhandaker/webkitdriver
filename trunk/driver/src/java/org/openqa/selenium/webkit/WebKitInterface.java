@@ -151,6 +151,22 @@ public interface WebKitInterface {
   public long getElementsByXpath(long ref, String query);
 
   /**
+   * Get single element by CSS selector
+   * @param ref - reference to Node
+   * @param selector - CSS selector
+   * @return reference to Node instance
+   */
+  public long getElementByCssSelector(long ref, String selector);
+
+  /**
+   * Get elements by CSS selector
+   * @param ref - reference to Node
+   * @param selector - CSS selector
+   * @return reference to NodeList instance
+   */
+  public long getElementsByCssSelector(long ref, String selector);
+
+  /**
    * NodeList.cpp
    *
    * @param ref - reference to NodeList
