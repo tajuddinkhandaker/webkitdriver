@@ -1275,6 +1275,37 @@ JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementsByX
     return jresult;
 }
 
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementByCssSelector(JNIEnv *env, jobject obj, jlong ref, jstring query)
+{
+    WebCore::Node *node = (WebCore::Node*)ref;
+    ExceptionCode ec = 0;
+    jlong jresult = 0 ;
+    if (node == NULL) {
+        return jresult;
+    }
+    WebCore::String  strQuery = to_string(env, query);
+    Headless::processExpiredTimers();
+    RefPtr<Element> element = node->querySelector(strQuery, ec);
+    jresult = (jlong)element.get();
+    return jresult;
+}
+
+JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_getElementsByCssSelector(JNIEnv *env, jobject obj, jlong ref, jstring query)
+{
+    WebCore::Node *node = (WebCore::Node*)ref;
+    ExceptionCode ec = 0;
+    jlong jresult = 0 ;
+    if (node == NULL) {
+        return jresult;
+    }
+    WebCore::String  strQuery = to_string(env, query);
+    Headless::processExpiredTimers();
+    RefPtr<WebCore::NodeList> elements = node->querySelectorAll(strQuery, ec);
+    jresult = (jlong)elements.get();
+    // Increase reference counter, so NodeList is alive after leaving the function
+    elements.get()->ref();
+    return jresult;
+}
 
 //NodeList
 JNIEXPORT jlong JNICALL Java_org_openqa_selenium_webkit_WebKitJNI_nodeListLength(JNIEnv *env, jobject obj, jlong ref)
