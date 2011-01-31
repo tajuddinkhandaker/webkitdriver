@@ -41,11 +41,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.openqa.selenium.By;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.Point;
 import org.openqa.selenium.RenderedWebElement;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.StaleElementReferenceException;
@@ -64,8 +66,6 @@ import org.w3c.dom.Element;
 
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
-import java.awt.Point;
-import java.awt.Dimension;
 import java.awt.Rectangle;
 
 import static org.openqa.selenium.Keys.ENTER;
@@ -409,7 +409,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     if (rect == null) {
       throw new WebDriverException("Cannot determine location of element");
     }
-    return rect.getLocation();
+    return new Point((int)(rect.getLocation().getX()), (int)(rect.getLocation().getY()));
   }
 
   public Dimension getSize() {
@@ -419,7 +419,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     if (rect == null) {
       throw new WebDriverException("Cannot determine size of element");
     }
-    return rect.getSize();
+    return new Dimension((int)(rect.getWidth()), (int)(rect.getHeight()));
   }
 
   public void dragAndDropBy(int moveRightBy, int moveDownBy) {
