@@ -35,9 +35,9 @@ end
 # Build webkitdriver
 java_jar(:name => 'webdriver_hlwk',
          :deps => [:webdriver_build,
-                   webdriver_dir + '/build/java/org/openqa/selenium/webdriver-api.jar',
-                   webdriver_dir + '/build/java/org/openqa/selenium/base.jar',
-                   webdriver_dir + '/build/java/org/openqa/selenium/internal/codecs.jar',
+                   webdriver_dir + '/build/javasrc/org/openqa/selenium/webdriver-api.jar',
+                   webdriver_dir + '/build/javasrc/org/openqa/selenium/base.jar',
+                   webdriver_dir + '/build/javasrc/org/openqa/selenium/internal/codecs.jar',
                   ] + extra_third_party_jars,
          :srcs => ["../driver/src/java/**/*.java"])
 
@@ -48,7 +48,7 @@ java_test(:name => "webdriver_hlwk_test",
                       webdriver_dir + '/build/javatests/org/openqa/selenium/base.jar',
                       webdriver_dir + '/build/javatests/org/openqa/selenium/tests.jar',
                       webdriver_dir + '/build/javatests/org/openqa/selenium/environment/environment.jar',
-                      webdriver_dir + '/build/java/org/openqa/selenium/remote/common.jar',
+                      webdriver_dir + '/build/javasrc/org/openqa/selenium/remote/common.jar',
                     ] + extra_jars)
 
 # Helper task to cd to webdriver root
