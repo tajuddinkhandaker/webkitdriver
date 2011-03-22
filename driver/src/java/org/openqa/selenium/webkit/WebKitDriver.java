@@ -33,7 +33,6 @@ import org.openqa.selenium.NoSuchFrameException;
 import org.openqa.selenium.NoSuchWindowException;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.SearchContext;
-import org.openqa.selenium.Speed;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
@@ -94,7 +93,6 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
   private long default_controller = 0;
   private long controller = 0;
   private WebKitInterface jni = WebKitJNI.getInstance();
-  private Speed speed = Speed.FAST;
   private WebKitAlert currentAlert;
   private long implicitWait = 0;
   private Pipe pipe;
@@ -637,6 +635,9 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     }
 
      private class WebKitOptions implements Options {
+        public ImeHandler ime() {
+          throw new UnsupportedOperationException("ime");
+        }
 
         private void verifyDomain(Cookie cookie, String expectedDomain) {
           String domain = cookie.getDomain();
@@ -837,15 +838,8 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
                 return url.getPath();
         }
 
-        public Speed getSpeed() {
-            return WebKitDriver.this.speed;
-        }
         public Timeouts timeouts() {
             return new WebKitTimeouts();
-        }
-
-        public void setSpeed(Speed speed) {
-            WebKitDriver.this.speed = speed;
         }
 
       // private String getDomainForCookie(Cookie cookie) {
