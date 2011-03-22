@@ -75,6 +75,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     FindsById, FindsByLinkText, FindsByXPath, FindsByTagName, FindsByCssSelector,
     SearchContext, WrapsDriver {
 
+  private static final int DURATION = 250;
   protected long element;
   protected WebKitDriver parent;
   
@@ -425,8 +426,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
   public void dragAndDropBy(int moveRightBy, int moveDownBy) {
     assertElementDisplayed();
 
-    int duration = parent.manage().getSpeed().getTimeOut();
-    parent.jni().drag(element, moveRightBy, moveDownBy, duration);
+    parent.jni().drag(element, moveRightBy, moveDownBy, DURATION);
   }
 
   public void dragAndDropOn(RenderedWebElement element) {
@@ -437,9 +437,8 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
 
     Point from   = getLocation();
     Point to     = element.getLocation();
-    int duration = parent.manage().getSpeed().getTimeOut();
 
-    parent.jni().drag(this.element, to.x - from.x, to.y - from.y, duration);
+    parent.jni().drag(this.element, to.x - from.x, to.y - from.y, DURATION);
   }
 
   public String getValueOfCssProperty(String propertyName) {
