@@ -1,0 +1,368 @@
+require 'rake'
+require 'rake/loaders/makefile'
+
+HEADLESS_PATH = 'headless/Source/'
+WEBKIT_PATH = 'WebKit/Source/'
+
+require 'headless/WebKit/Tools/hl/cc_library'
+
+install_dir = 'WebKitBuild/Release'
+
+omitted_platforms = [
+    'Gtk', 'Mac', 'Qt', 'Win', 'Wince', 'WinCE', 'Safari', 'Haiku', 'Brew',
+    'Chromium', 'ChromiumLinux', 'ChromiumMac', 'ChromiumWin', 'ChromiumSkia',
+    'CF', 'Symbian', 'Wx', 'Efl']
+
+omitted_platform_patterns = omitted_platforms.map do |x|
+  [ "*#{x}.cpp", "*/#{x.downcase}/**.cpp"]
+end.flatten!
+
+common_defines = ['WTF_PLATFORM_HEADLESS=1',
+                  'JS_NO_EXPORT=1',
+                  'ENABLE_DATABASE=1',
+                  'ENABLE_DATALIST=1',
+                  'ENABLE_DATAGRID=1',
+                  'ENABLE_DOM_STORAGE=1',
+                  'ENABLE_GESTURE_EVENTS=0',
+                  'ENABLE_GESTURE_RECOGNIZER=0',
+                  'ENABLE_XSLT=1',
+                  'ENABLE_XPATH=1',
+                  'ENABLE_JAVASCRIPT_DEBUGGER=0',
+                  'ENABLE_JIT=1',
+                  'ENABLE_SVG=1',
+                  'ENABLE_SVG_ANIMATION=1',
+                  'ENABLE_SVG_AS_IMAGE=1',
+                  'ENABLE_SVG_FONTS=1',
+                  'ENABLE_SVG_FOREIGN_OBJECT=1',
+                  'ENABLE_SVG_USE=1',
+                  'ENABLE_SVG_DOM_OBJC_BINDINGS=0',
+                  'ENABLE_VIDEO=1',
+                  'ENABLE_FILTERS=1',
+                  'ENABLE_GEOLOCATION=1',
+                  #'ENABLE_CLIENT_BASED_GEOLOCATION=1',
+                  'ENABLE_NOTIFICATIONS=0',
+                  'ENABLE_WEBGL=0',
+                  'ENABLE_INSPECTOR=0',
+                  'ENABLE_OFFLINE_WEB_APPLICATIONS=1',
+                  'WTF_USE_CURL=1',
+                  'WTF_USE_PTHREADS=1',
+                  'USE_FREETYPE=1',
+                  'ENABLE_PLUGIN_PACKAGE_SIMPLE_HASH=1']
+
+js_includes = path_map([
+             '.',
+             'JavaScriptCore',
+             'JavaScriptCore/API',
+             'JavaScriptCore/ForwardingHeaders',
+             'JavaScriptCore/assembler',
+             'JavaScriptCore/bytecode',
+             'JavaScriptCore/bytecompiler',
+             'JavaScriptCore/debugger',
+             'JavaScriptCore/dfg',
+             'JavaScriptCore/heap',
+             'JavaScriptCore/interpreter',
+             'JavaScriptCore/jit',
+             'JavaScriptCore/parser',
+             'JavaScriptCore/pcre',
+             'JavaScriptCore/profiler',
+             'JavaScriptCore/runtime',
+             'JavaScriptCore/wrec',
+             'JavaScriptCore/wtf',
+             'JavaScriptCore/wtf/dtoa',
+             'JavaScriptCore/wtf/gtk',
+             'JavaScriptCore/wtf/gobject',
+             'JavaScriptCore/wtf/text',
+             'JavaScriptCore/wtf/unicode',
+             'JavaScriptCore/wtf/unicode/icu',
+             'JavaScriptCore/DerivedSources',
+           ], true)
+
+jni_includes = [ ENV['JAVA_HOME'] + '/include',
+                 ENV['JAVA_HOME'] + '/include/linux' ]
+
+extra_libraries 'curl', 'xslt'
+extra_libraries_pkgconfig 'sqlite3'
+
+task :icu do
+  LDFLAGS['icu'] = `icu-config --ldflags`.split
+end
+
+our_tasks = Rake.application.top_level_tasks
+process_derived = ENV["WEBKIT_NOT_PROCESS_DERIVED"].nil?
+
+if process_derived && ((our_tasks & %w{clean clean_derived dist_clean}).empty? || ! (our_tasks & %w{default generate_derived}).empty?)
+
+  directory(WEBKIT_PATH + '/JavaScriptCore/DerivedSources/docs')
+  directory(WEBKIT_PATH + '/WebCore/DerivedSources')
+
+  task :generate_derived => path_map(['JavaScriptCore/DerivedSources/docs', 'WebCore/DerivedSources']) do
+    curdir = Dir.pwd()
+    derived_defines = common_defines.join(' ')
+    Dir.chdir(WEBKIT_PATH + 'JavaScriptCore')
+    src_dir = Dir.pwd
+    sh "make -C DerivedSources -f ../DerivedSources.make JavaScriptCore=#{src_dir} BUILT_PRODUCTS_DIR=#{src_dir} all FEATURE_DEFINES='#{derived_defines}'"
+    Dir.chdir('../WebCore')
+    src_dir = Dir.pwd
+    sh "make -C DerivedSources -f ../DerivedSources.make WebCore=#{src_dir} SOURCE_ROOT=#{src_dir} all FEATURE_DEFINES='#{derived_defines}'"
+    Dir.chdir(curdir)
+  end
+
+  Rake::Task[:generate_derived].invoke
+end
+
+if (our_tasks & %w{clean clean_derived dist_clean}).empty? || ! (our_tasks & %w{default}).empty?
+
+  cc_library :name => 'libjscore.a',
+             :srcs => path_map([
+               'JavaScriptCore/API/*.cpp',
+               'JavaScriptCore/bytecode/*.cpp',
+               'JavaScriptCore/bytecompiler/*.cpp',
+               'JavaScriptCore/debugger/*.cpp',
+               'JavaScriptCore/dfg/*.cpp',
+               'JavaScriptCore/heap/*.cpp',
+               'JavaScriptCore/interpreter/*.cpp',
+               'JavaScriptCore/jit/*.cpp',
+               'JavaScriptCore/parser/*.cpp',
+               'JavaScriptCore/pcre/*.cpp',
+               'JavaScriptCore/profiler/*.cpp',
+               'JavaScriptCore/runtime/*.cpp',
+               'JavaScriptCore/wrec/*.cpp',
+               'JavaScriptCore/wtf/*.cpp',
+               'JavaScriptCore/wtf/dtoa/*.cc',
+               'JavaScriptCore/wtf/text/*.cpp',
+               'JavaScriptCore/wtf/hl/*.cpp',
+               'JavaScriptCore/wtf/unicode/*.cpp',
+               'JavaScriptCore/wtf/unicode/icu/*.cpp',
+               'JavaScriptCore/yarr/*.cpp',
+               'JavaScriptCore/DerivedSources/*.cpp'
+           ]),
+           :exclude => exclude = omitted_platform_patterns + path_map([
+               'JavaScriptCore/API/JSStringRefBSTR.cpp',
+               'JavaScriptCore/API/JSProfilerPrivate.cpp',
+               '*CF.cpp',
+               '*Win.cpp',
+               '*None.cpp',
+               'JavaScriptCore/pcre/ucptable.cpp'
+#               'jsc.cpp',
+           ]),
+           :libs => ['icu'],
+           :defines => common_defines,
+           :includes => js_includes,
+           :install => install_dir
+
+  cc_library :name => 'jsc',
+           :deps => [ 'libjscore.a' ],
+           :srcs => path_map([ 'JavaScriptCore/jsc.cpp' ]),
+           :libs => ['icu'],
+           :defines => common_defines,
+           :includes => js_includes,
+           :local_static => [ 'libjscore.a' ],
+           :ldflags => [ '-lpthread' ],
+           :install => install_dir
+
+  cc_library :name => 'libhlwk.so',
+           :srcs => path_map([
+               'WebCore/accessibility/*.cpp',
+               'WebCore/bindings/*.cpp',
+               'WebCore/bindings/generic/*.cpp',
+               'WebCore/bindings/js/*.cpp',
+               'WebCore/bindings/js/specialization/*.cpp',
+               'WebCore/bridge/*.cpp',
+               'WebCore/bridge/c/*.cpp',
+               'WebCore/bridge/jsc/*.cpp',
+               'WebCore/css/*.cpp',
+               'WebCore/dom/*.cpp',
+               'WebCore/dom/default/*.cpp',
+               'WebCore/editing/*.cpp',
+               'WebCore/editing/hl/*.cpp',
+               'WebCore/fileapi/*.cpp',
+               'WebCore/history/*.cpp',
+               'WebCore/html/*.cpp',
+               'WebCore/html/canvas/*.cpp',
+               'WebCore/html/parser/*.cpp',
+               'WebCore/html/shadow/*.cpp',
+               'WebCore/inspector/*.cpp',
+               'WebCore/loader/*.cpp',
+               'WebCore/loader/appcache/*.cpp',
+               'WebCore/loader/archive/*.cpp',
+               'WebCore/loader/cache/*.cpp',
+               'WebCore/loader/icon/*.cpp',
+               'WebCore/page/*.cpp',
+               'WebCore/page/animation/*.cpp',
+               'WebCore/page/hl/*.cpp',
+               'WebCore/platform/*.cpp',
+               'WebCore/platform/animation/*.cpp',
+               'WebCore/platform/graphics/*.cpp',
+               'WebCore/platform/graphics/hl/*.cpp',
+               'WebCore/platform/graphics/transforms/*.cpp',
+               'WebCore/platform/graphics/filters/*.cpp',
+               'WebCore/platform/graphics/filters/arm/*.cpp',
+               'WebCore/platform/posix/*.cpp',
+               'WebCore/platform/hl/*.cpp',
+               'WebCore/platform/image-decoders/*.cpp',
+               'WebCore/platform/image-decoders/bmp/*.cpp',
+               'WebCore/platform/image-decoders/hl/*.cpp',
+               'WebCore/platform/image-decoders/gif/*.cpp',
+               'WebCore/platform/image-decoders/ico/*.cpp',
+               'WebCore/platform/image-decoders/jpeg/*.cpp',
+               'WebCore/platform/image-decoders/png/*.cpp',
+               'WebCore/platform/image-decoders/xbm/*.cpp',
+               'WebCore/platform/network/*.cpp',
+               'WebCore/platform/network/curl/*.cpp',
+               'WebCore/platform/network/hl/*.cpp',
+               'WebCore/platform/sql/*.cpp',
+               'WebCore/platform/text/*.cpp',
+               'WebCore/platform/text/transcoder/*.cpp',
+               'WebCore/platform/text/hl/*.cpp',
+               'WebCore/platform/mock/*.cpp',
+               'WebCore/plugins/*.cpp',
+               'WebCore/rendering/*.cpp',
+               'WebCore/rendering/style/*.cpp',
+               'WebCore/rendering/svg/*.cpp',
+               'WebCore/storage/*.cpp',
+               'WebCore/wml/*.cpp',
+               'WebCore/xml/*.cpp',
+               'WebCore/xml/parser/*.cpp',
+               'WebCore/svg/*.cpp',
+               'WebCore/svg/animation/*.cpp',
+               'WebCore/svg/graphics/*.cpp',
+               'WebCore/svg/graphics/filters/*.cpp',
+               'WebCore/svg/properties/*.cpp',
+               'WebCore/testing/*.cpp',
+               'WebCore/testing/js/*.cpp',
+               'WebCore/websockets/*.cpp',
+               'WebCore/DerivedSources/*.cpp',
+               'WebKit/hl/WebKitSupport/*.cpp',
+               'WebKit/hl/*.cpp',
+           ]),
+           :exclude => omitted_platform_patterns + path_map([
+               'WebCore/bindings/js/JSNavigatorCustom.cpp',
+               '*/WebGLContextEvent.cpp',
+               '*/PlatformGestureRecognizer.cpp',
+               '*/GeneratedImage.cpp',
+              # We use ICU
+               'WebCore/platform/text/TextEncodingDetectorNone.cpp',
+               'WebCore/rendering/RenderMediaControls.cpp',
+               'WebCore/platform/text/LocaleToScriptMappingDefault.cpp',
+              # Disable special handling of search input field as described
+              # in issue 9.
+              # 'WebCore/rendering/RenderTextControlSingleLine.cpp',
+               'WebCore/bridge/test*.cpp',
+              # 'WebCore/DerivedSources/CSSPropertyNames.cpp',
+               'WebCore/DerivedSources/DocTypeStrings.cpp',
+               'WebCore/DerivedSources/tokenizer.cpp',
+               'WebCore/DerivedSources/JSAbstractView.cpp',
+               'WebCore/platform/graphics/FontPlatformData.cpp',
+               'WebCore/platform/network/curl/CookieJarCurl.cpp',
+               'WebCore/platform/network/curl/ResourceHandleManager.cpp',
+               '**/LocalizedNumberNone.cpp',
+               '**/*AllInOne.cpp',
+              # Removing ObjC Protocols
+               'WebCore/DerivedSources/JSSVGAnimatedPoints.cpp',
+               'WebCore/DerivedSources/JSSVGStylable.cpp',
+               'WebCore/DerivedSources/JSElementTimeControl.cpp',
+               'WebCore/DerivedSources/JSSVGFitToViewBox.cpp',
+               'WebCore/DerivedSources/JSSVGExternalResourcesRequired.cpp',
+               'WebCore/DerivedSources/JSSVGLocatable.cpp',
+               'WebCore/DerivedSources/JSSVGURIReference.cpp',
+               'WebCore/DerivedSources/JSSVGTransformable.cpp',
+               'WebCore/DerivedSources/JSSVGTests.cpp',
+               'WebCore/DerivedSources/JSSVGFilterPrimitiveStandardAttributes.cpp',
+               'WebCore/DerivedSources/JSSVGLangSpace.cpp',
+               'WebCore/DerivedSources/JSSVGZoomAndPan.cpp',
+               'WebCore/DerivedSources/JSSVGAnimatedPathData.cpp'
+            ]),
+           :deps => [ 'libjscore.a' ],
+           :libs => ['icu', 'curl', 'sqlite3', 'xslt', 'pthread', 'jpeg', 'png'],
+           :local_static => [ 'libjscore.a'],
+           :defines => common_defines,
+           :includes => path_map([
+             'WebCore/css',
+             '.',
+             'WebCore/DerivedSources',
+             'WebCore/platform/text',
+             'WebCore',
+             'WebCore/accessibility',
+             'WebCore/bindings',
+             'WebCore/bindings/generic',
+             'WebCore/bindings/js',
+             'WebCore/bridge',
+             'WebCore/bridge/c',
+             'WebCore/bridge/jni',
+             'WebCore/bridge/jsc',
+             'WebCore/dom',
+             'WebCore/editing',
+             'WebCore/fileapi',
+             'WebCore/inspector',
+             'WebCore/history',
+             'WebCore/html',
+             'WebCore/html/canvas',
+             'WebCore/html/parser',
+             'WebCore/html/shadow',
+             'WebCore/inspector',
+             'WebCore/loader',
+             'WebCore/loader/archive',
+             'WebCore/loader/cache',
+             'WebCore/loader/icon',
+             'WebCore/loader/appcache',
+             'WebCore/notifications',
+             'WebCore/page',
+             'WebCore/page/animation',
+             'WebCore/platform',
+             'WebCore/platform/animation',
+             'WebCore/platform/graphics',
+             'WebCore/platform/graphics/filters',
+             'WebCore/platform/graphics/filters/arm',
+             'WebCore/platform/graphics/hl',
+             'WebCore/platform/graphics/transforms',
+             'WebCore/platform/hl',
+             'WebCore/platform/image-decoders',
+             'WebCore/platform/image-decoders/bmp',
+             'WebCore/platform/image-decoders/gif',
+             'WebCore/platform/image-decoders/ico',
+             'WebCore/platform/image-decoders/jpeg',
+             'WebCore/platform/image-decoders/png',
+             'WebCore/platform/image-decoders/xbm',
+             'WebCore/platform/mock',
+             'WebCore/platform/network',
+             'WebCore/platform/network/curl',
+             'WebCore/platform/network/hl',
+             'WebCore/platform/sql',
+             'WebCore/platform/text',
+             'WebCore/platform/text/transcoder',
+             'WebCore/plugins',
+             'WebCore/plugins/headless',
+             'WebCore/storage',
+             'WebCore/rendering',
+             'WebCore/rendering/style',
+             'WebCore/rendering/svg',
+             'WebCore/workers',
+             'WebCore/wml',
+             'WebCore/xml',
+             'WebCore/xml/parser',
+             'WebCore/svg',
+             'WebCore/svg/animation',
+             'WebCore/svg/graphics',
+             'WebCore/svg/graphics/filters',
+             'WebCore/svg/properties',
+             'WebCore/testing',
+             'WebCore/testing/js',
+             'WebCore/websockets',
+             'WebKit/hl/WebKitSupport',
+             'WebKit/hl'
+           ], true) + js_includes + jni_includes,
+           :install => install_dir
+end
+
+task :clean_derived do
+    sh "rm -rf #{WEBKIT_PATH}WebCore/DerivedSources"
+    sh "rm -rf #{WEBKIT_PATH}JavaScriptCore/DerivedSources"
+end
+
+task :clean do
+    sh "rm -rf #{install_dir}"
+end
+
+task :dist_clean => [:clean, :clean_derived]
+
+task :default => [ 'jsc', 'libhlwk.so' ]

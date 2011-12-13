@@ -1,0 +1,6 @@
+TODO for Headless Webkit:
+
+* Fix names of files and classes: replace Wx with Hl suffix where needed
+* Image and font renering for screenshots
+* Cookie support rework using curl shared handler
+
