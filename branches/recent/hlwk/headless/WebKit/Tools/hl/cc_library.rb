@@ -123,19 +123,10 @@ def mk_dep(dep, src, obj, cxxflags, def_fname, c_defs)
 end
 
 def path_map(items, override=false)
-    overriden = []
-    map = items.map do |x|
+    items.map do |x|
         hl = x.split('/').include?('hl')
-        if hl
-            HEADLESS_PATH + x
-        else
-            if override
-                overriden.push(HEADLESS_PATH + x)
-            end
-            WEBKIT_PATH + x
-        end
+        (hl ? HEADLESS_PATH : WEBKIT_PATH) + x
     end
-    map
 end
 
 
