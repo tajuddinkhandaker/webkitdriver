@@ -3,6 +3,7 @@ require 'rake/loaders/makefile'
 
 HEADLESS_PATH = 'headless/Source/'
 WEBKIT_PATH = 'WebKit/Source/'
+PATCH_FILE = 'headers.patch'
 
 require 'headless/WebKit/Tools/hl/cc_library'
 
@@ -92,8 +93,8 @@ process_derived = ENV["WEBKIT_NOT_PROCESS_DERIVED"].nil?
 
 if process_derived && ((our_tasks & %w{clean clean_derived dist_clean}).empty? || ! (our_tasks & %w{default generate_derived}).empty?)
 
-  directory(WEBKIT_PATH + '/JavaScriptCore/DerivedSources/docs')
-  directory(WEBKIT_PATH + '/WebCore/DerivedSources')
+  directory(WEBKIT_PATH + 'JavaScriptCore/DerivedSources/docs')
+  directory(WEBKIT_PATH + 'WebCore/DerivedSources')
 
   task :generate_derived => path_map(['JavaScriptCore/DerivedSources/docs', 'WebCore/DerivedSources']) do
     curdir = Dir.pwd()
@@ -361,6 +362,15 @@ end
 
 task :clean do
     sh "rm -rf #{install_dir}"
+end
+
+file '.patched' do
+    curdir = Dir.pwd()
+    patch_file = curdir + '/' + PATCH_FILE
+    Dir.chdir(WEBKIT_PATH)
+    sh "patch -p0 < #{patch_file}"
+    Dir.chdir(curdir)
+    FileUtils::touch '.patched'
 end
 
 task :dist_clean => [:clean, :clean_derived]

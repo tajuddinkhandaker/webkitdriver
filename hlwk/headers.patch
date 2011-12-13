@@ -1,0 +1,154 @@
+Index: WebCore/platform/graphics/FontPlatformData.h
+===================================================================
+--- WebCore/platform/graphics/FontPlatformData.h	(revision 101786)
++++ WebCore/platform/graphics/FontPlatformData.h	(working copy)
+@@ -31,6 +31,8 @@
+ #include "wince/FontPlatformData.h"
+ #elif PLATFORM(WX)
+ #include "wx/FontPlatformData.h"
++#elif PLATFORM(HEADLESS)
++#include <../hl/FontPlatformData.h>
+ #elif (PLATFORM(EFL) || PLATFORM(GTK)) && USE(FREETYPE)
+ #include "freetype/FontPlatformData.h"
+ #elif (PLATFORM(EFL) || PLATFORM(GTK)) && USE(PANGO)
+Index: WebCore/platform/graphics/Pattern.h
+===================================================================
+--- WebCore/platform/graphics/Pattern.h	(revision 101786)
++++ WebCore/platform/graphics/Pattern.h	(working copy)
+@@ -55,6 +55,8 @@
+ class wxBrush;
+ typedef wxBrush* PlatformPatternPtr;
+ #endif // USE(WXGC)
++#elif PLATFORM(HEADLESS)
++typedef void* PlatformPatternPtr;
+ #elif OS(WINCE)
+ typedef void* PlatformPatternPtr;
+ #endif
+Index: WebCore/platform/graphics/ImageBufferData.h
+===================================================================
+--- WebCore/platform/graphics/ImageBufferData.h	(revision 101786)
++++ WebCore/platform/graphics/ImageBufferData.h	(working copy)
+@@ -35,4 +35,6 @@
+ #include "ImageBufferDataWince.h"
+ #elif PLATFORM(WX)
+ #include "ImageBufferDataWx.h"
++#elif PLATFORM(HEADLESS)
++#include "ImageBufferDataHl.h"
+ #endif
+Index: WebCore/platform/graphics/ImageSource.h
+===================================================================
+--- WebCore/platform/graphics/ImageSource.h	(revision 101786)
++++ WebCore/platform/graphics/ImageSource.h	(working copy)
+@@ -88,6 +88,8 @@
+ #endif
+ #elif USE(CAIRO)
+ typedef cairo_surface_t* NativeImagePtr;
++#elif PLATFORM(HEADLESS)
++typedef void* NativeImagePtr;
+ #elif USE(SKIA)
+ typedef WebCore::NativeImageSkia* NativeImagePtr;
+ #elif OS(WINCE)
+Index: WebCore/platform/graphics/Path.h
+===================================================================
+--- WebCore/platform/graphics/Path.h	(revision 101786)
++++ WebCore/platform/graphics/Path.h	(working copy)
+@@ -46,6 +46,9 @@
+ #elif PLATFORM(WX) && USE(WXGC)
+ class wxGraphicsPath;
+ typedef wxGraphicsPath PlatformPath;
++#elif PLATFORM(HEADLESS)
++class hlGraphicsPath;
++typedef hlGraphicsPath PlatformPath;
+ #elif USE(CAIRO)
+ namespace WebCore {
+ class CairoPath;
+Index: WebCore/platform/graphics/MediaPlayer.cpp
+===================================================================
+--- WebCore/platform/graphics/MediaPlayer.cpp	(revision 101786)
++++ WebCore/platform/graphics/MediaPlayer.cpp	(working copy)
+@@ -206,7 +206,7 @@
+         }
+ #endif
+ 
+-#if !PLATFORM(GTK) && !PLATFORM(EFL) && !(PLATFORM(QT) && USE(GSTREAMER))
++#if !PLATFORM(GTK) && !PLATFORM(EFL) && !PLATFORM(HEADLESS) && !(PLATFORM(QT) && USE(GSTREAMER))
+         PlatformMediaEngineClassName::registerMediaEngine(addMediaEngine);
+ #endif
+     }
+Index: WebCore/platform/network/NetworkStateNotifier.h
+===================================================================
+--- WebCore/platform/network/NetworkStateNotifier.h	(revision 101786)
++++ WebCore/platform/network/NetworkStateNotifier.h	(working copy)
+@@ -63,7 +63,7 @@
+ 
+ #if (PLATFORM(QT) && !defined(QT_NO_BEARERMANAGEMENT))
+     void setNetworkAccessAllowed(bool);
+-#elif PLATFORM(CHROMIUM) || PLATFORM(EFL)
++#elif PLATFORM(ANDROID) || PLATFORM(EFL) || PLATFORM(HEADLESS)
+     void setOnLine(bool);
+ #endif
+ 
+Index: WebCore/platform/PlatformKeyboardEvent.h
+===================================================================
+--- WebCore/platform/PlatformKeyboardEvent.h	(revision 101786)
++++ WebCore/platform/PlatformKeyboardEvent.h	(working copy)
+@@ -183,6 +183,18 @@
+         PlatformKeyboardEvent(wxKeyEvent&);
+ #endif
+ 
++#if PLATFORM(HEADLESS)
++        PlatformKeyboardEvent(Type, UChar, int modifiers = 0);
++#endif
++
++#if PLATFORM(HAIKU)
++        PlatformKeyboardEvent(BMessage*);
++#endif
++
++#if PLATFORM(BREWMP)
++        PlatformKeyboardEvent(AEEEvent, uint16, uint32, Type);
++#endif
++
+ #if PLATFORM(WIN) || PLATFORM(CHROMIUM)
+         bool isSystemKey() const { return m_isSystemKey; }
+ #endif
+Index: WebCore/platform/DragImage.h
+===================================================================
+--- WebCore/platform/DragImage.h	(revision 101786)
++++ WebCore/platform/DragImage.h	(working copy)
+@@ -70,6 +70,8 @@
+     typedef HBITMAP DragImageRef;
+ #elif PLATFORM(WX)
+     typedef wxDragImage* DragImageRef;
++#elif PLATFORM(HEADLESS)
++    typedef void* DragImageRef;
+ #elif PLATFORM(GTK)
+     typedef cairo_surface_t* DragImageRef;
+ #elif PLATFORM(EFL) || PLATFORM(BLACKBERRY)
+Index: WebCore/platform/Widget.h
+===================================================================
+--- WebCore/platform/Widget.h	(revision 101786)
++++ WebCore/platform/Widget.h	(working copy)
+@@ -78,6 +78,10 @@
+ typedef wxWindow* PlatformWidget;
+ #endif
+ 
++#if PLATFORM(HEADLESS)
++typedef void* PlatformWidget;
++#endif
++
+ #if PLATFORM(EFL)
+ typedef struct _Evas_Object Evas_Object;
+ typedef struct _Evas Evas;
+Index: WebCore/platform/DragData.h
+===================================================================
+--- WebCore/platform/DragData.h	(revision 101786)
++++ WebCore/platform/DragData.h	(working copy)
+@@ -55,6 +55,8 @@
+ #include <wtf/text/WTFString.h>
+ #elif PLATFORM(WX)
+ typedef class wxDataObject* DragDataRef;
++#elif PLATFORM(HEADLESS)
++typedef void* DragDataRef;
+ #elif PLATFORM(GTK)
+ namespace WebCore {
+ class DataObjectGtk;
