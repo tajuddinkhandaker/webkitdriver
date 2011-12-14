@@ -14,7 +14,7 @@ extra_third_party_jars = FileList.new(Dir.glob(third_party_jars_path))
 
 # Extra webdriver jars
 extra_jars_include = webdriver_dir + "/third_party/**/*.jar"
-extra_jars_exclude = "android.jar"
+extra_jars_exclude = "android-14.jar"
 extra_jars = FileList.new(Dir.glob(extra_jars_include)) do |f|
   f.exclude(extra_jars_exclude)
 end
@@ -35,21 +35,16 @@ end
 # Build webkitdriver
 java_jar(:name => 'webdriver_hlwk',
          :deps => [:webdriver_build,
-                   webdriver_dir + '/build/java/client/src/org/openqa/selenium/webdriver-api.jar',
-                   webdriver_dir + '/build/java/client/src/org/openqa/selenium/base.jar',
-                   webdriver_dir + '/build/java/client/src/org/openqa/selenium/internal/codecs.jar',
-                  ] + extra_third_party_jars,
+                   webdriver_dir + '/build/java/client/src/**/*.jar',
+                  ] + extra_jars,
          :srcs => ["../driver/src/java/**/*.java"])
 
 # Build webkitdriver tests
 java_test(:name => "webdriver_hlwk_test",
           :srcs  => [ webkit_dir + '/test/java/**/*.java' ],
           :deps =>  [ :webdriver_hlwk,
-                      webdriver_dir + '/build/java/client/test/org/openqa/selenium/base.jar',
-                      webdriver_dir + '/build/java/client/test/org/openqa/selenium/tests.jar',
-                      webdriver_dir + '/build/java/client/test/org/openqa/selenium/environment/environment.jar',
-                      webdriver_dir + '/build/java/client/src/org/openqa/selenium/remote/common.jar',
-                    ] + extra_jars)
+                      webdriver_dir + '/build/java/client/test/**/*.jar',
+                    ])
 
 # Helper task to cd to webdriver root
 task :cd_webdriver do
