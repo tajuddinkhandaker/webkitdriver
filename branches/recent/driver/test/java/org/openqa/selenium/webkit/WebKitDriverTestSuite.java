@@ -30,7 +30,9 @@ public class WebKitDriverTestSuite extends TestCase {
     TestEnvironment environment = GlobalTestEnvironment.get();
 
     return new TestSuiteBuilder()
-    .addSourceDir("../driver")
+    //.addSourceDir("../driver")
+    .addSourceDir("java/client/test")
+    .addSourceDir("../driver/test/java")
     //.addSourceDir("remote")
     //.addSourceDir("common")
     .usingDriver(WebKitDriver.class)
