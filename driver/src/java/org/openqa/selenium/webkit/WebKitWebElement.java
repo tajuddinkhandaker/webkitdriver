@@ -48,7 +48,6 @@ import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.Point;
-import org.openqa.selenium.RenderedWebElement;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.ElementNotVisibleException;
@@ -71,7 +70,7 @@ import java.awt.Rectangle;
 import static org.openqa.selenium.Keys.ENTER;
 import static org.openqa.selenium.Keys.RETURN;
 
-public class WebKitWebElement implements WebElement, RenderedWebElement,
+public class WebKitWebElement implements WebElement,
     FindsById, FindsByLinkText, FindsByXPath, FindsByTagName, FindsByCssSelector,
     SearchContext, WrapsDriver {
 
@@ -429,7 +428,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     parent.jni().drag(element, moveRightBy, moveDownBy, DURATION);
   }
 
-  public void dragAndDropOn(RenderedWebElement element) {
+  public void dragAndDropOn(WebElement element) {
     assertElementDisplayed();
 
     if (!element.isDisplayed())
@@ -441,7 +440,7 @@ public class WebKitWebElement implements WebElement, RenderedWebElement,
     parent.jni().drag(this.element, to.x - from.x, to.y - from.y, DURATION);
   }
 
-  public String getValueOfCssProperty(String propertyName) {
+  public String getCssValue(String propertyName) {
     assertElementNotStale();
     String val = parent.jni().getProperty(element, propertyName);
 
