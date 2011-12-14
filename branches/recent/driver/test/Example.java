@@ -43,7 +43,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.RenderedWebElement;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.webkit.WebKitDriver;
 import org.openqa.selenium.webkit.WebKitWebElement;
@@ -53,12 +52,12 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 public class Example  {
     public static void main(String[] args) {
         Example ex = new Example();
-//      ex.test0();
+      ex.test0();
 //      ex.testJS();
 //      ex.testCookie();
 //        ex.testGmail();
 //        ex.testVisibility();
-        ex.Google(null);
+//        ex.Google(null);
     }
 
     private void test0() {
@@ -122,10 +121,10 @@ public class Example  {
     
         d1.get("file:///home/igor/work/google/webdriver-mobile-public/common/src/web/xhtmlTest.html");
         System.out.println("URL: " + d1.getCurrentUrl());
-        ((RenderedWebElement)d1.findElement(By.id("linkId"))).isDisplayed();
+        ((WebElement)d1.findElement(By.id("linkId"))).isDisplayed();
         d1.get("file:///home/igor/work/google/webdriver-mobile-public/common/src/web/rectangles.html");
         System.out.println("URL: " + d1.getCurrentUrl());
-        ((RenderedWebElement)d1.findElement(By.id("r2"))).isDisplayed();
+        ((WebElement)d1.findElement(By.id("r2"))).isDisplayed();
     }
 
     private void testJS() {
@@ -400,7 +399,7 @@ public class Example  {
     private void Google(String userAgent) {
       long timeInMillis = System.currentTimeMillis();
       System.out.println("=> 0");
-      WebKitDriver driver = new WebKitDriver(userAgent);
+      WebKitDriver driver = new WebKitDriver();
       // driver.manage().timeouts().implicitlyWait(1000, MILLISECONDS);
       System.out.println("=> 1");
       driver.get("http://google.com");

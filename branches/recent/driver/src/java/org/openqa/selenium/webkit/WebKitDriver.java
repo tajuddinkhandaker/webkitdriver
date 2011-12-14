@@ -525,6 +525,10 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
     return AppCacheStatus.values()[status];
   }
 
+  public void clear() {
+    //TODO: implement
+  }
+
   public boolean isOnline() {
     long state = jni.online();
     if (state == 1)
@@ -842,7 +846,6 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             return new WebKitTimeouts();
         }
 
-      // private String getDomainForCookie(Cookie cookie) {
       private String getDomainForCookie() {
             String domain = "";
             try {
@@ -853,7 +856,11 @@ public class WebKitDriver implements WebDriver, SearchContext, JavascriptExecuto
             }
             return domain;
       }
-    }
+
+      public Window window() {
+        throw new UnsupportedOperationException("Window interface is not supported yet.");
+      }
+  }
 
   public WebElement findElementByPartialLinkText(String using) {
     return rootNode().findElementByPartialLinkText(using);
